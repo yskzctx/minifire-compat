@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="mode_off" type="id" />
+    <item name="mode_observe" type="id" />
+    <item name="mode_experiment" type="id" />
+    <item name="mode_ios_os" type="id" />
+    <item name="mode_ios_channel" type="id" />
+    <item name="mode_ios_version" type="id" />
+</resources>

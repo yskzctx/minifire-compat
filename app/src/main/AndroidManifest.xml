@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries><package android:name="com.miniworldroyale.sparkgame" /></queries>
+    <application android:name=".CompatApplication" android:label="迷枪苹果区兼容" android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
+        android:description="@string/module_description"
+        android:allowBackup="false" android:supportsRtl="true" android:usesCleartextTraffic="false">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".LogsActivity" android:exported="false" />
+        <provider android:name="io.github.libxposed.service.XposedProvider" android:authorities="com.codex.minifire.compatlab.XposedService"
+            android:exported="true" />
+        <provider android:name=".SettingsProvider" android:authorities="com.codex.minifire.compatlab.settings"
+            android:exported="true" android:grantUriPermissions="false" />
+        <receiver android:name=".CommandConfigReceiver" android:exported="true" android:permission="android.permission.DUMP" />
+    </application>
+</manifest>

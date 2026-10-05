@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="icon_background">#3866EE</color>
+    <string name="module_description">苹果区账号兼容：一键开关、持久配置与运行日志，仅限迷你枪战精英。</string>
+    <item name="compat_switch" type="id" />
+    <item name="open_logs" type="id" />
+</resources>

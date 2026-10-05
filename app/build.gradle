@@ -1,0 +1,27 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.codex.minifire.compatlab'
+    compileSdk 34
+    ndkVersion '26.3.11579264'
+    defaultConfig {
+        applicationId 'com.codex.minifire.compatlab'
+        minSdk 26
+        targetSdk 34
+        versionCode 11
+        versionName '0.4.1'
+        ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild { cmake { arguments '-DANDROID_STL=c++_static' } }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildTypes { release { minifyEnabled false } }
+    externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' } }
+    packaging { jniLibs { useLegacyPackaging = false } }
+}
+dependencies {
+    compileOnly files('libs/api-101.jar')
+    implementation files('libs/service-101.jar', 'libs/interface-101.jar')
+}

@@ -1,0 +1,26 @@
+# Local Android environment and build outputs
+.gradle/
+**/build/
+**/.cxx/
+**/.externalNativeBuild/
+local.properties
+.idea/
+*.iml
+test-classes/
+__pycache__/
+*.pyc
+.venv/
+dist/
+*.apk
+*.idsig
+# Signing material and sensitive local state
+*.p12
+*.jks
+*.keystore
+*.pass
+*.pem
+*.key
+.env
+.env.*
+private/
+device-data/

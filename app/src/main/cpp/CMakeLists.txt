@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22)
+project(minifire_login LANGUAGES CXX)
+add_library(minifire_login SHARED login_filter.cpp binary_guard.cpp native_entry.cpp)
+target_compile_features(minifire_login PRIVATE cxx_std_17)
+target_compile_options(minifire_login PRIVATE -Wall -Wextra -Werror -fvisibility=hidden -fstack-protector-strong)
+target_compile_definitions(minifire_login PRIVATE _FORTIFY_SOURCE=2)
+target_link_options(minifire_login PRIVATE -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now)
+target_link_libraries(minifire_login PRIVATE dl)
