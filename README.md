@@ -2,6 +2,8 @@
 
 [下载已签名安装包](https://github.com/yskzctx/minifire-compat/releases/tag/v0.4.1) · [构建说明](docs/BUILD.md) · [验证记录](docs/VERIFICATION.md)
 
+**安卓用户请下载 [Minifire-Compat-0.4.1.apk](https://github.com/yskzctx/minifire-compat/releases/download/v0.4.1/Minifire-Compat-0.4.1.apk)，直接安装，无需解压。** GitHub 自动生成的 `Source code (zip)` 是开发源码，不能直接安装。遇到“无法解压”或“文件损坏”，请查看[下载与解压排查](docs/DOWNLOAD.md)。
+
 主界面只有账号兼容开关和日志入口。开关立即保存，关闭再开启会恢复此前成功的登录配置。覆盖安装保留原设置，无需重新选择实验模式。
 
 0.4.1 增加蓝白卡片界面、开启状态标签、统一日志页样式及自适应桌面图标，仅美化显示，登录与自动生效逻辑不变。
