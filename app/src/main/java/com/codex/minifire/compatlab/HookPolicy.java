@@ -4,8 +4,9 @@ public final class HookPolicy {
     public static final String GAME = "com.miniworldroyale.sparkgame";
     public static final String VERSION = "1.0.77";
     public static boolean supportedVersion(String version) {
-        return "1.0.76".equals(version) || VERSION.equals(version);
+        return "1.0.76".equals(version) || "1.0.79".equals(version) || VERSION.equals(version);
     }
+    public static boolean versionProfileSupported(String version) { return "1.0.77".equals(version) || "1.0.79".equals(version); }
     private HookPolicy() {}
     public static boolean isTarget(String packageName, String processName) {
         return GAME.equals(packageName) && GAME.equals(processName);

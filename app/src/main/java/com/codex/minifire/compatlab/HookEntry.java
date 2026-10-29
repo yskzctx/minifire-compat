@@ -39,7 +39,7 @@ public final class HookEntry extends XposedModule {
             diagnostic(settings.ready ? "settings_remote" : "settings_unavailable", null);
             int mode = settings.mode; if (mode == 0) return;
             String version = context.getPackageManager().getPackageInfo(HookPolicy.GAME, 0).versionName;
-            if (!HookPolicy.supportedVersion(version) || (mode == 5 && !"1.0.77".equals(version))) { diagnostic("version_rejected", null); return; }
+            if (!HookPolicy.supportedVersion(version) || (mode == 5 && !HookPolicy.versionProfileSupported(version))) { diagnostic("version_rejected", null); return; }
             // The one-switch product preserves SDK credentials and uses the verified
             // native login path; old Java SDK channel experiments are not enabled.
             if (mode < 3 || mode > 5) { event("unsupported_version", new String[0], new int[0]); return; }

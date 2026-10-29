@@ -8,7 +8,7 @@ final class SettingsStore {
     static boolean publish(Context context, int mode, int target) {
         try {
             if (mode < 0 || mode > 5 || target < -1 || target > 1000000 || (mode == 2 && target < 0)) return false;
-            if (mode == 5 && !"1.0.77".equals(context.getPackageManager().getPackageInfo(HookPolicy.GAME, 0).versionName)) return false;
+            if (mode == 5 && !HookPolicy.versionProfileSupported(context.getPackageManager().getPackageInfo(HookPolicy.GAME, 0).versionName)) return false;
             SharedPreferences remote = CompatApplication.remote(); if (remote == null) return false;
             SharedPreferences prefs = context.getSharedPreferences(SettingsProvider.PREFS, 0);
             int remembered = SettingsSelector.resumeMode(prefs.getInt("mode", 0), prefs.getInt("preferred_mode", 5), prefs.getInt("target", -1));

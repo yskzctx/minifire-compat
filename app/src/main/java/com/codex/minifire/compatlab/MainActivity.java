@@ -29,7 +29,7 @@ public final class MainActivity extends Activity {
         TextView mark=UiKit.text(this,"M",25,0xffffffff,true); mark.setGravity(Gravity.CENTER); mark.setBackground(UiKit.rounded(this,UiKit.BLUE,16));
         header.addView(mark,new LinearLayout.LayoutParams(UiKit.dp(this,52),UiKit.dp(this,52)));
         LinearLayout names=new LinearLayout(this); names.setOrientation(LinearLayout.VERTICAL); names.setPadding(UiKit.dp(this,14),0,0,0);
-        names.addView(UiKit.text(this,"迷枪兼容",23,UiKit.INK,true)); names.addView(UiKit.text(this,"苹果区账号 · 0.4.1",12,UiKit.MUTED,false)); header.addView(names); root.addView(header);
+        names.addView(UiKit.text(this,"迷枪兼容",23,UiKit.INK,true)); names.addView(UiKit.text(this,"苹果区账号 · 0.4.2",12,UiKit.MUTED,false)); header.addView(names); root.addView(header);
         UiKit.gap(root,30);
         root.addView(UiKit.text(this,"开启一次，\n以后直接进游戏。",30,UiKit.INK,true));
         UiKit.gap(root,10); root.addView(UiKit.text(this,"重启自动生效，无需重复打开应用",14,UiKit.MUTED,false));

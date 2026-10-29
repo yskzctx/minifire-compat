@@ -26,6 +26,7 @@ int raw_version(const LuaApi& api, lua_State* state, const char* key) {
             const std::string_view value(text, size);
             if (value == "1.0.77") version = 1;
             else if (value == "1.0.78") version = 2;
+            else if (value == "1.0.79") version = 3;
         }
     }
     api.settop(state, -2);
@@ -71,8 +72,8 @@ FilterResult apply_login_filter(const LuaApi& api, lua_State* state, int mode) {
     result.selected_os = 2;
     if (mode == 4 || mode == 5) { raw_integer(api, state, "ChannelID", 888); result.selected_channel = 888; }
     if (mode == 5) {
-        raw_string(api, state, "Version", "1.0.78");
-        if (result.message == 1) raw_string(api, state, "VersionName", "1.0.78");
+        raw_string(api, state, "Version", "1.0.79");
+        if (result.message == 1) raw_string(api, state, "VersionName", "1.0.79");
         result.version_profile = true;
     }
     result.applied = true;

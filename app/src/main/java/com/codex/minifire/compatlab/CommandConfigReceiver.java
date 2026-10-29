@@ -23,7 +23,7 @@ public final class CommandConfigReceiver extends BroadcastReceiver {
         }
         if (mode == 5) {
             try {
-                if (!"1.0.77".equals(context.getPackageManager().getPackageInfo(HookPolicy.GAME, 0).versionName)) {
+                if (!HookPolicy.versionProfileSupported(context.getPackageManager().getPackageInfo(HookPolicy.GAME, 0).versionName)) {
                     setResultData("CONFIG_VERSION_UNSUPPORTED"); return;
                 }
             } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {

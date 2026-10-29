@@ -85,13 +85,13 @@ check('version profile changes both terminal version fields before encoding', fu
     local data=request(); data.VersionName='1.0.77'; apply('md.ApiLoginRequest',data,5)
     local decoded=assert(pb.decode('md.ApiLoginRequest',pb.encode('md.ApiLoginRequest',data)))
     assert(decoded.PhoneOs==2 and decoded.ChannelID==888)
-    assert(decoded.Version=='1.0.78' and decoded.VersionName=='1.0.78')
+    assert(decoded.Version=='1.0.79' and decoded.VersionName=='1.0.79')
     assert(decoded.OpenID=='LOCAL-FIXTURE' and decoded.OpenToken=='NOT-A-REAL-TOKEN')
 end)
 check('version profile covers the lobby and its initially absent channel', function()
     local data={Phone_Os=1,Version='1.0.77',Token='LOCAL-FIXTURE-TOKEN'}; apply('md.Login',data,5)
     local decoded=assert(pb.decode('md.Login',pb.encode('md.Login',data)))
-    assert(decoded.Phone_Os==2 and decoded.ChannelID==888 and decoded.Version=='1.0.78')
+    assert(decoded.Phone_Os==2 and decoded.ChannelID==888 and decoded.Version=='1.0.79')
     assert(decoded.Token=='LOCAL-FIXTURE-TOKEN')
 end)
 check('cached compatible versions normalize before automatic relogin', function()
@@ -99,7 +99,7 @@ check('cached compatible versions normalize before automatic relogin', function(
         local data=request(); data.ChannelID=888; data.Version=versions[1]; data.VersionName=versions[2]
         apply('md.ApiLoginRequest',data,5)
         local decoded=assert(pb.decode('md.ApiLoginRequest',pb.encode('md.ApiLoginRequest',data)))
-        assert(decoded.PhoneOs==2 and decoded.ChannelID==888 and decoded.Version=='1.0.78' and decoded.VersionName=='1.0.78')
+        assert(decoded.PhoneOs==2 and decoded.ChannelID==888 and decoded.Version=='1.0.79' and decoded.VersionName=='1.0.79')
         assert(decoded.OpenID=='LOCAL-FIXTURE' and decoded.OpenToken=='NOT-A-REAL-TOKEN')
     end
 end)
@@ -134,6 +134,12 @@ check('version profile remains stable and avoids metamethods', function()
     local data=setmetatable({Phone_Os=1,Version='1.0.77'}, {
         __index=function() error('read trap') end,__newindex=function() error('write trap') end})
     for i=1,1000 do apply('md.Login',data,5) end
-    assert(rawget(data,'Phone_Os')==2 and rawget(data,'ChannelID')==888 and rawget(data,'Version')=='1.0.78')
+    assert(rawget(data,'Phone_Os')==2 and rawget(data,'ChannelID')==888 and rawget(data,'Version')=='1.0.79')
+end)
+check('current cached login can mix 1.0.79 and installed 1.0.77', function()
+    local data=request(); data.Version='1.0.79'; data.VersionName='1.0.77'; data.ChannelID=888
+    apply('md.ApiLoginRequest',data,5)
+    assert(data.PhoneOs==2 and data.Version=='1.0.79' and data.VersionName=='1.0.79')
+    assert(data.OpenToken=='NOT-A-REAL-TOKEN')
 end)
 return cases
