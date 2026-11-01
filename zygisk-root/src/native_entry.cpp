@@ -9,7 +9,7 @@
 #include <mutex>
 #include <string_view>
 
-// Public LSPosed Native Hook ABI. The framework supplies the hook engine.
+// The application-process loader supplies the hook engine.
 using HookFunction = int (*)(void*, void*, void**);
 using UnhookFunction = int (*)(void*);
 using OnLoaded = void (*)(const char*, void*);
@@ -21,9 +21,8 @@ struct RequestStats {
     std::atomic<int> version_profile{0};
 };
 static RequestStats terminal_stats, lobby_stats;
-static std::atomic<int> response_code{-1000001}, response_count{0}, decode_ready{0};
 static LuaApi api{};
-static LuaCFunction open_backup = nullptr, encode_backup = nullptr, decode_backup = nullptr;
+static LuaCFunction open_backup = nullptr, encode_backup = nullptr;
 static LuaCFunction (*to_cfunction)(lua_State*, int) = nullptr;
 static std::mutex install_mutex;
 static bool library_ready = false, encoder_ready = false;
@@ -75,26 +74,6 @@ static int encode_replacement(lua_State* state) {
     }
     return encode_backup(state);
 }
-static int decode_replacement(lua_State* state) {
-    bool terminal=false;
-    if (api.type(state,1)==4) {
-        std::size_t size=0; const char* name=api.tolstring(state,1,&size);
-        terminal=name && size==19 && std::string_view(name,size)=="md.ApiLoginResponse";
-    }
-    const int results=decode_backup(state);
-    if (terminal && results==1 && api.type(state,-1)==5 && api.checkstack(state,2)) {
-        const int top=api.gettop(state);
-        api.pushstring(state,"Code"); api.rawget(state,top);
-        if (api.type(state,-1)==3) {
-            const double value=api.tonumber(state,-1);
-            if (value>=-1000000 && value<=1000000 && value==static_cast<int>(value)) {
-                response_code.store(static_cast<int>(value)); response_count.fetch_add(1);
-            }
-        }
-        api.settop(state,top);
-    }
-    return results;
-}
 static LuaCFunction table_function(lua_State* state, int top, const char* key) {
     api.pushstring(state,key); api.rawget(state,top);
     const auto function=to_cfunction(state,-1); api.settop(state,top);
@@ -105,7 +84,6 @@ static int open_replacement(lua_State* state) {
     if (results!=1 || api.type(state,-1)!=5 || !api.checkstack(state,2)) return results;
     const int top=api.gettop(state);
     const auto encoder=table_function(state,top,"encode");
-    const auto decoder=table_function(state,top,"decode");
     Dl_info encode_info{};
     if (!encoder || !dladdr(reinterpret_cast<void*>(encoder),&encode_info)) return results;
     // The backup trampoline is outside the original library; compare against
@@ -122,11 +100,6 @@ static int open_replacement(lua_State* state) {
             stage.store(-3); return results;
         }
         encoder_ready=true; stage.store(4); log_stage(4);
-        Dl_info decode_info{};
-        if (decoder && dladdr(reinterpret_cast<void*>(decoder),&decode_info) &&
-            decode_info.dli_fbase==api_info.dli_fbase &&
-            hook(reinterpret_cast<void*>(decoder),reinterpret_cast<void*>(decode_replacement),
-                 reinterpret_cast<void**>(&decode_backup))==0 && decode_backup) decode_ready.store(1);
     }
     return results;
 }
@@ -181,7 +154,7 @@ Java_com_codex_minifire_compatlab_NativeBridge_snapshot(JNIEnv* env,jclass) {
         terminal_stats.original_channel.load(),terminal_stats.selected_channel.load(),
         lobby_stats.original_os.load(),lobby_stats.selected_os.load(),
         lobby_stats.original_channel.load(),lobby_stats.selected_channel.load(),
-        response_code.load(),response_count.load(),decode_ready.load(),
+        -1000001,0,0,
         terminal_stats.version_profile.load(),lobby_stats.version_profile.load()};
     auto array=env->NewIntArray(16);
     if (array) env->SetIntArrayRegion(array,0,16,values);

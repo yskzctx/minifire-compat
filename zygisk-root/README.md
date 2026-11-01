@@ -1,8 +1,8 @@
 # 不占用 LSPosed 游戏作用域的候选方案
 
-基于本仓库 `v0.4.2` 登录过滤器与 Build-ID 校验独立构建。加载方式为 Zygisk API 4，Hook 引擎为静态链接 Dobby 1.2。安装后在支持模块 WebUI 的 Root 管理器打开「迷枪苹果区兼容」，可分别控制游戏和 Hunter，并查看模块日志。游戏与 Hunter 默认关闭；配置保存在模块目录 `game_enabled` 和 `hunter_enabled`。安装脚本会补齐缺失的配置文件；页面在验证模块 ID 与版本后也可补齐缺失文件，但不会覆盖已有设置。页面优先使用控制脚本；如果脚本不可用，可直接读写配置文件，日志读取不依赖脚本。切换后完全退出目标应用并重新打开生效。若新包尚待重启，页面优先控制目前运行的模块配置。
+基于本仓库 `v0.4.2` 登录过滤器与 Build-ID 校验独立构建。Zygisk API 4 前端只匹配目标进程并读取开关；应用进程分化后才通过文件描述符加载原生兼容核心，Dobby 1.2 和 NDK C++ 运行库不进入 Zygote。安装后在支持模块 WebUI 的 Root 管理器打开「迷枪苹果区兼容」，可分别控制游戏和 Hunter，并查看模块日志。游戏与 Hunter 默认关闭；配置保存在模块目录 `game_enabled` 和 `hunter_enabled`。安装脚本会补齐缺失的配置文件；页面在验证模块 ID 与版本后也可补齐缺失文件，但不会覆盖已有设置。页面优先使用控制脚本；如果脚本不可用，可直接读写配置文件，日志读取不依赖脚本。切换后完全退出目标应用并重新打开生效。若新包尚待重启，页面优先控制目前运行的模块配置。
 
-游戏仅匹配 `com.miniworldroyale.sparkgame` 主进程；Hunter 仅匹配 `com.zhenxi.hunter` 与 `com.zhenxi.hunter:hunter_main_process`。两者加载完全相同的本模块 ARM64 库和加载器 Hook，进入同一套经过 Build-ID 校验的 `libtolua.so` 过滤流程。若 Hunter 没有加载相同的游戏库，日志只会显示模块加载及加载器 Hook，不会产生登录过滤事件。其他进程立即卸载。本模块不会为 Hunter 添加额外隐藏逻辑。
+游戏仅匹配 `com.miniworldroyale.sparkgame` 主进程；Hunter 仅匹配 `com.zhenxi.hunter` 与 `com.zhenxi.hunter:hunter_main_process`。两者加载完全相同的本模块 ARM64 库和加载器 Hook，进入同一套经过 Build-ID 校验的 `libtolua.so` 过滤流程。若 Hunter 没有加载相同的游戏库，日志只会显示模块加载及加载器 Hook，不会产生登录过滤事件。其他进程立即卸载。本模块不会为 Hunter 添加额外隐藏逻辑。`dlopen` 与 `android_dlopen_ext` 加载器 Hook 在目标进程运行期间保持；`pb.encode` Hook 仅在识别到受支持的游戏库后安装，登录过滤器只改两类登录请求。
 
 本模块与旧的 LSPosed 兼容模块不能同时对游戏请求生效。安装后需要在 LSPosed 管理器取消游戏作用域，并保持 Root/Zygisk 提供器工作。模块使用最新版已知的登录版本声明 `1.0.79`，但未知游戏库会被 Build-ID 校验拒绝。官方安卓版 1.0.79 的库尚未取得。
 

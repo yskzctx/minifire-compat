@@ -11,5 +11,5 @@ foreach($TaskFile in @($TaskCmake,$TaskNinja,$TaskToolchain)) { if(-not (Test-Pa
 if($LASTEXITCODE -ne 0){throw 'CMake configuration failed'}
 & $TaskCmake --build (Join-Path $TaskProject 'build') --parallel 4
 if($LASTEXITCODE -ne 0){throw 'Native build failed'}
-& uv run python (Join-Path $TaskProject 'tools/package.py') (Join-Path $TaskProject '../../outputs/Minifire-Zygisk-No-LSP-Scope-0.5.5-candidate.zip')
+& uv run python (Join-Path $TaskProject 'tools/package.py') (Join-Path $TaskProject '../../outputs/Minifire-Zygisk-No-LSP-Scope-0.6.0-candidate.zip')
 if($LASTEXITCODE -ne 0){throw 'Packaging failed'}
