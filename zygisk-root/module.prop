@@ -1,6 +1,6 @@
 id=minifire_compat_zygisk
 name=迷枪苹果区兼容
-version=0.5.3-candidate
-versionCode=503
+version=0.5.4-candidate
+versionCode=504
 author=Minifire Compat
 description=游戏与 Hunter 独立开关的 Zygisk 兼容候选；含模块日志 WebUI。

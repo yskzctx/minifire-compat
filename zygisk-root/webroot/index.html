@@ -16,7 +16,7 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Zygisk · v0.5.3</div><h1>迷枪苹果区兼容</h1>
+  <div class="eyebrow">Zygisk · v0.5.4</div><h1>迷枪苹果区兼容</h1>
   <p>分别控制游戏和 Hunter 的模块加载。开关保存后，完全退出目标应用再打开即可生效。</p>
   <section class="card row"><div><h2>游戏兼容</h2><div class="sub">com.miniworldroyale.sparkgame</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="游戏兼容"><span class="track"></span></label></section>
   <section class="card row"><div><h2>Hunter 检查</h2><div class="sub">com.zhenxi.hunter</div></div><label class="switch"><input id="hunter" type="checkbox" disabled aria-label="Hunter 检查"><span class="track"></span></label></section>
@@ -26,31 +26,66 @@
   'use strict';
   const moduleId='minifire_compat_zygisk';
   const statusPattern=/^game=([01])\r?\nhunter=([01])\s*$/m;
-  let script=null;
+  let backend=null;
   const game=document.getElementById('game'),hunter=document.getElementById('hunter');
   const status=document.getElementById('status'),logs=document.getElementById('logs');
-  function findScript(){
+  function bridge(){
     if(!window.ksu||typeof window.ksu.exec!=='function') throw Error('请从支持 WebUI 的 Root 管理器打开此页面');
-    if(script) return script;
+    return window.ksu;
+  }
+  function findBackend(){
+    if(backend) return backend;
+    const ksu=bridge();
     const dirs=['/data/adb/modules/'+moduleId];
-    if(typeof window.ksu.moduleInfo==='function'){
+    let reported='未提供';
+    if(typeof ksu.moduleInfo==='function'){
       try{
-        const info=JSON.parse(window.ksu.moduleInfo());
-        if(info.id===moduleId && /^\/data\/adb\/modules(?:_update)?\/minifire_compat_zygisk$/.test(info.moduleDir)) dirs.push(info.moduleDir);
+        const info=JSON.parse(ksu.moduleInfo());
+        const dir=String(info.moduleDir||'').replace(/\/+$/,'');
+        reported=dir||'未提供';
+        if((!info.id||info.id===moduleId) && /^\/[A-Za-z0-9_./-]+$/.test(dir) &&
+           !dir.split('/').some(part=>part==='.'||part==='..') && dir.endsWith('/'+moduleId)) dirs.push(dir);
       }catch(_error){}
     }
     dirs.push('/data/adb/modules_update/'+moduleId);
+    let detail='';
     for(const dir of new Set(dirs)){
       const candidate='sh '+dir+'/control.sh';
-      const output=window.ksu.exec(candidate+' status');
-      if(typeof output==='string' && statusPattern.test(output)){script=candidate;return script;}
+      const output=ksu.exec(candidate+' status');
+      if(typeof output==='string' && statusPattern.test(output)){
+        backend={type:'script',command:candidate};return backend;
+      }
+      if(typeof output==='string' && output.trim()) detail=output.trim().slice(0,100);
     }
-    throw Error('配置读取失败：未找到已安装模块的控制脚本，请确认 Root 管理器中的模块位置');
+    for(const dir of new Set(dirs)){
+      const output=ksu.exec('cat '+dir+'/game_enabled '+dir+'/hunter_enabled 2>&1');
+      if(typeof output==='string' && /^[01]\r?\n[01]\s*$/.test(output)){
+        backend={type:'direct',dir};return backend;
+      }
+      if(typeof output==='string' && output.trim()) detail=output.trim().slice(0,100);
+    }
+    const uid=String(ksu.exec('id -u 2>&1')||'无输出').trim().slice(0,30);
+    throw Error('配置读取失败：UID='+uid+'；目录='+reported+'；返回='+detail);
   }
   function run(argument){
-    const command=findScript()+' '+argument;
-    const output=window.ksu.exec(command);
+    const ksu=bridge();
+    if(argument==='logs') return ksu.exec("logcat -d -v time -t 200 -s MinifireCompatZ:V '*:S' 2>&1");
+    const active=findBackend();
+    let command;
+    if(active.type==='script') command=active.command+' '+argument;
+    else if(argument==='status') command='cat '+active.dir+'/game_enabled '+active.dir+'/hunter_enabled 2>&1';
+    else {
+      const match=/^(game|hunter) ([01])$/.exec(argument);
+      if(!match) throw Error('无效的开关操作');
+      const path=active.dir+'/'+match[1]+'_enabled';
+      command="printf '%s\\n' '"+match[2]+"' > "+path+'.tmp && chmod 0644 '+path+'.tmp && mv -f '+path+'.tmp '+path+' && cat '+path+' 2>&1';
+    }
+    const output=ksu.exec(command);
     if(typeof output!=='string') throw Error('Root 管理器没有返回命令结果');
+    if(active.type==='direct' && argument==='status'){
+      const match=/^([01])\r?\n([01])\s*$/.exec(output);
+      if(match) return 'game='+match[1]+'\nhunter='+match[2]+'\n';
+    }
     return output;
   }
   function show(message){status.textContent=message;}
