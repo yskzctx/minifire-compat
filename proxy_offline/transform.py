@@ -9,10 +9,14 @@ from google.protobuf.descriptor_pool import DescriptorPool
 from google.protobuf.message_factory import GetMessageClass
 from google.protobuf.message import DecodeError
 import UnityPy
+import re
 
 
 class ProtocolTransformer:
-    def __init__(self, source):
+    def __init__(self, source, target_version="1.0.79"):
+        if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", target_version):
+            raise ValueError("invalid target version")
+        self.target_version = target_version
         environment = UnityPy.load(str(source))
         files = {}
         for obj in environment.objects:
@@ -66,7 +70,7 @@ class ProtocolTransformer:
         before = (request.PhoneOs, request.ChannelID, request.Version, request.VersionName)
         request.PhoneOs = 2
         request.ChannelID = 888
-        request.Version = request.VersionName = "1.0.79"
+        request.Version = request.VersionName = self.target_version
         return (request.SerializeToString(), True) if before != (
             request.PhoneOs, request.ChannelID, request.Version, request.VersionName
         ) else (data, False)
@@ -87,7 +91,7 @@ class ProtocolTransformer:
         before = (login.Phone_Os, login.ChannelID, login.Version)
         login.Phone_Os = 2
         login.ChannelID = 888
-        login.Version = "1.0.79"
+        login.Version = self.target_version
         if before == (login.Phone_Os, login.ChannelID, login.Version):
             return data, False
         packet.Body = login.SerializeToString()

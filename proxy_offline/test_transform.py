@@ -67,3 +67,16 @@ def test_invalid_protobuf_is_byte_for_byte_unchanged():
     invalid = b"\xff\xff"
     assert protocol.terminal_login(invalid) == (invalid, False)
     assert protocol.lobby_packet(invalid) == (invalid, False)
+
+
+def test_ios_version_is_independent_of_android_source_version():
+    selected = ProtocolTransformer(SOURCE, target_version="1.0.80")
+    request = selected.new("md.ApiLoginRequest")
+    request.PhoneOs = 1
+    request.ChannelID = 23
+    request.Version = request.VersionName = "1.0.77"
+    after, changed = selected.terminal_login(request.SerializeToString())
+    result = selected.parse("md.ApiLoginRequest", after)
+    assert changed
+    assert (result.Version, result.VersionName) == ("1.0.80", "1.0.80")
+    assert result.PhoneOs == 2 and result.ChannelID == 888
