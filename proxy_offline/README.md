@@ -16,6 +16,10 @@ TLS 流量密钥只适用于对应连接，不能作为跨重启的缓存。若�
 
 本地资源的 protobuf 描述文件显示，中控 `ApiLoginResponseEntity` 含 `Token`、`OpenID` 和大厅地址；大厅 `LoginRsp` 含 `RefreshToken` 标志。Lua 流程将中控 `Token` 用于后续登录，并在大厅要求刷新时调用 `api/auth/refreshtoken`，保存返回的新 HTTP `Token`。这些是会话凭据的更新证据；没有字段或调用证据表明它们可用于解密未来 TLS 连接，或替代 `EncryptToSHA1ForLogin` 的签名材料。后续若做实机观察，应只记录字段是否出现和失效时间，不保存原始令牌值。
 
+## 大厅 TCP 边界
+
+按本地 1.0.77 `libil2cpp.so` 的方法表，`TcpSocketClient.ReadMessageBlocking` 位于 RVA `0x26b4bbc`，`writeMessage` 位于 `0x26b4ef4`。前者的可见代码有一次固定读取 6 字节的步骤；`sendBytes` 位于 RVA `0x26b52e8`，但其本地机器码受保护。不能据此认定完整帧格式，也不能认定大厅连接一定是明文。当前 `lobby_packet` 只接收**已经从流中提取的完整 `cmdpkg.CmdPacket` 消息体**，不能直接接到 TCP 字节流上。
+
 ```powershell
 uv run --with UnityPy --with protobuf --with pytest python -m pytest -q proxy_offline/test_transform.py
 ```
