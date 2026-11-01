@@ -35,3 +35,26 @@ elements.game.handlers.change();
 assert.equal(flags.game,'0');
 assert(calls.every(x=>!x.includes('com.bank')));
 console.log('webui switches and log display ok');
+
+const pendingElements=Object.fromEntries(['game','hunter','logs','status','refresh'].map(id=>[id,{
+  id,checked:false,disabled:true,textContent:'',handlers:{},
+  addEventListener(event,handler){this.handlers[event]=handler;}
+}]));
+const pendingCalls=[];
+const pendingContext={document:{getElementById:id=>pendingElements[id]},window:{ksu:{
+  moduleInfo:()=>JSON.stringify({id:'minifire_compat_zygisk',moduleDir:'/data/adb/modules_update/minifire_compat_zygisk'}),
+  exec(command){
+    pendingCalls.push(command);
+    assert(command.startsWith('sh /data/adb/modules_update/minifire_compat_zygisk/control.sh '));
+    if(command.endsWith(' status'))return 'game=1\nhunter=0\n';
+    if(command.endsWith(' logs'))return 'target=1 loader_hooks=2\n';
+    return '1\n';
+  }
+}}};
+vm.runInNewContext(script,pendingContext);
+assert.equal(pendingElements.game.disabled,false);
+assert.equal(pendingElements.hunter.disabled,false);
+assert.equal(pendingElements.game.checked,true);
+assert.match(pendingElements.logs.textContent,/loader_hooks=2/);
+assert(pendingCalls.length>=2);
+console.log('pending-update module path ok');

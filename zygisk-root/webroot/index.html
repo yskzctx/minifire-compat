@@ -16,7 +16,7 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Zygisk · v0.5.1</div><h1>迷枪苹果区兼容</h1>
+  <div class="eyebrow">Zygisk · v0.5.2</div><h1>迷枪苹果区兼容</h1>
   <p>分别控制游戏和 Hunter 的模块加载。开关保存后，完全退出目标应用再打开即可生效。</p>
   <section class="card row"><div><h2>游戏兼容</h2><div class="sub">com.miniworldroyale.sparkgame</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="游戏兼容"><span class="track"></span></label></section>
   <section class="card row"><div><h2>Hunter 检查</h2><div class="sub">com.zhenxi.hunter</div></div><label class="switch"><input id="hunter" type="checkbox" disabled aria-label="Hunter 检查"><span class="track"></span></label></section>
@@ -24,18 +24,40 @@
   <p id="status" role="status"></p>
 </main><script>
   'use strict';
-  const script='sh /data/adb/modules/minifire_compat_zygisk/control.sh';
+  const moduleId='minifire_compat_zygisk';
+  const statusPattern=/^game=([01])\r?\nhunter=([01])\s*$/m;
+  let script=null;
   const game=document.getElementById('game'),hunter=document.getElementById('hunter');
   const status=document.getElementById('status'),logs=document.getElementById('logs');
-  function run(argument){
+  function findScript(){
     if(!window.ksu||typeof window.ksu.exec!=='function') throw Error('请从支持 WebUI 的 Root 管理器打开此页面');
-    return window.ksu.exec(script+' '+argument);
+    if(script) return script;
+    const dirs=[];
+    if(typeof window.ksu.moduleInfo==='function'){
+      try{
+        const info=JSON.parse(window.ksu.moduleInfo());
+        if(info.id===moduleId && /^\/data\/adb\/modules(?:_update)?\/minifire_compat_zygisk$/.test(info.moduleDir)) dirs.push(info.moduleDir);
+      }catch(_error){}
+    }
+    dirs.push('/data/adb/modules/'+moduleId,'/data/adb/modules_update/'+moduleId);
+    for(const dir of new Set(dirs)){
+      const candidate='sh '+dir+'/control.sh';
+      const output=window.ksu.exec(candidate+' status');
+      if(typeof output==='string' && statusPattern.test(output)){script=candidate;return script;}
+    }
+    throw Error('配置读取失败：未找到已安装模块的控制脚本，请确认 Root 管理器中的模块位置');
+  }
+  function run(argument){
+    const command=findScript()+' '+argument;
+    const output=window.ksu.exec(command);
+    if(typeof output!=='string') throw Error('Root 管理器没有返回命令结果');
+    return output;
   }
   function show(message){status.textContent=message;}
   function readStatus(message='开关已读取'){
     try{
       const output=run('status');
-      const match=/^game=([01])\r?\nhunter=([01])\s*$/m.exec(output);
+      const match=statusPattern.exec(output);
       if(!match) throw Error('配置读取失败：'+output);
       game.checked=match[1]==='1';hunter.checked=match[2]==='1';
       game.disabled=false;hunter.disabled=false;show(message);
