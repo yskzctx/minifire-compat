@@ -45,6 +45,7 @@ const pendingContext={document:{getElementById:id=>pendingElements[id]},window:{
   moduleInfo:()=>JSON.stringify({id:'minifire_compat_zygisk',moduleDir:'/data/adb/modules_update/minifire_compat_zygisk'}),
   exec(command){
     pendingCalls.push(command);
+    if(command.startsWith('sh /data/adb/modules/minifire_compat_zygisk/control.sh '))return '';
     assert(command.startsWith('sh /data/adb/modules_update/minifire_compat_zygisk/control.sh '));
     if(command.endsWith(' status'))return 'game=1\nhunter=0\n';
     if(command.endsWith(' logs'))return 'target=1 loader_hooks=2\n';

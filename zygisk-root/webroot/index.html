@@ -16,7 +16,7 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Zygisk · v0.5.2</div><h1>迷枪苹果区兼容</h1>
+  <div class="eyebrow">Zygisk · v0.5.3</div><h1>迷枪苹果区兼容</h1>
   <p>分别控制游戏和 Hunter 的模块加载。开关保存后，完全退出目标应用再打开即可生效。</p>
   <section class="card row"><div><h2>游戏兼容</h2><div class="sub">com.miniworldroyale.sparkgame</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="游戏兼容"><span class="track"></span></label></section>
   <section class="card row"><div><h2>Hunter 检查</h2><div class="sub">com.zhenxi.hunter</div></div><label class="switch"><input id="hunter" type="checkbox" disabled aria-label="Hunter 检查"><span class="track"></span></label></section>
@@ -32,14 +32,14 @@
   function findScript(){
     if(!window.ksu||typeof window.ksu.exec!=='function') throw Error('请从支持 WebUI 的 Root 管理器打开此页面');
     if(script) return script;
-    const dirs=[];
+    const dirs=['/data/adb/modules/'+moduleId];
     if(typeof window.ksu.moduleInfo==='function'){
       try{
         const info=JSON.parse(window.ksu.moduleInfo());
         if(info.id===moduleId && /^\/data\/adb\/modules(?:_update)?\/minifire_compat_zygisk$/.test(info.moduleDir)) dirs.push(info.moduleDir);
       }catch(_error){}
     }
-    dirs.push('/data/adb/modules/'+moduleId,'/data/adb/modules_update/'+moduleId);
+    dirs.push('/data/adb/modules_update/'+moduleId);
     for(const dir of new Set(dirs)){
       const candidate='sh '+dir+'/control.sh';
       const output=window.ksu.exec(candidate+' status');

@@ -1,6 +1,6 @@
 # 不占用 LSPosed 游戏作用域的候选方案
 
-基于本仓库 `v0.4.2` 登录过滤器与 Build-ID 校验独立构建。加载方式为 Zygisk API 4，Hook 引擎为静态链接 Dobby 1.2。安装后在支持模块 WebUI 的 Root 管理器打开「迷枪苹果区兼容」，可分别控制游戏和 Hunter，并查看模块日志。游戏默认开启、Hunter 默认关闭；配置保存在模块目录 `game_enabled` 和 `hunter_enabled`。切换后完全退出目标应用并重新打开生效。
+基于本仓库 `v0.4.2` 登录过滤器与 Build-ID 校验独立构建。加载方式为 Zygisk API 4，Hook 引擎为静态链接 Dobby 1.2。安装后在支持模块 WebUI 的 Root 管理器打开「迷枪苹果区兼容」，可分别控制游戏和 Hunter，并查看模块日志。游戏与 Hunter 默认关闭；配置保存在模块目录 `game_enabled` 和 `hunter_enabled`。切换后完全退出目标应用并重新打开生效。若新包尚待重启，页面优先控制目前运行的模块配置。
 
 游戏仅匹配 `com.miniworldroyale.sparkgame` 主进程；Hunter 仅匹配 `com.zhenxi.hunter` 与 `com.zhenxi.hunter:hunter_main_process`。两者加载完全相同的本模块 ARM64 库和加载器 Hook，进入同一套经过 Build-ID 校验的 `libtolua.so` 过滤流程。若 Hunter 没有加载相同的游戏库，日志只会显示模块加载及加载器 Hook，不会产生登录过滤事件。其他进程立即卸载。本模块不会为 Hunter 添加额外隐藏逻辑。
 
