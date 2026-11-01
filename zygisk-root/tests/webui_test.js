@@ -108,3 +108,30 @@ assert.match(missingElements.status.textContent,/UID=0/);
 assert.match(missingElements.status.textContent,/custom_modules/);
 assert.match(missingElements.logs.textContent,/loader_hooks=0/);
 console.log('missing-config diagnostics ok');
+
+const repairElements=Object.fromEntries(['game','hunter','logs','status','refresh'].map(id=>[id,{
+  id,checked:false,disabled:true,textContent:'',handlers:{},
+  addEventListener(event,handler){this.handlers[event]=handler;}
+}]));
+const repairFlags={game:'1',hunter:null};
+const repairCalls=[];
+vm.runInNewContext(script,{document:{getElementById:id=>repairElements[id]},window:{ksu:{
+  moduleInfo:()=>JSON.stringify({id:'minifire_compat_zygisk',moduleDir:'/data/adb/modules/minifire_compat_zygisk'}),
+  exec(command){
+    repairCalls.push(command);
+    if(command.includes('logcat'))return '';
+    if(command.includes('control.sh'))return '';
+    if(command.includes('/module.prop'))return 'id=minifire_compat_zygisk\nversionCode=504\n';
+    if(command.includes('printf')&&command.includes('hunter_enabled')) repairFlags.hunter='0';
+    if(command.includes('game_enabled')&&command.includes('hunter_enabled'))
+      return repairFlags.hunter===null?'1\ncat: hunter_enabled: No such file or directory\n':`${repairFlags.game}\n${repairFlags.hunter}\n`;
+    return '';
+  }
+}}});
+assert.equal(repairElements.game.disabled,false,'missing hunter flag should be repaired');
+assert.equal(repairElements.hunter.disabled,false);
+assert.equal(repairElements.game.checked,true,'existing game flag must be preserved');
+assert.equal(repairElements.hunter.checked,false);
+assert.equal(repairFlags.hunter,'0');
+assert(repairCalls.some(command=>command.includes('printf')&&command.includes('hunter_enabled')));
+console.log('missing flag repair preserves existing setting ok');

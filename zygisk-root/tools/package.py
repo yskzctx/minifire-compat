@@ -7,6 +7,7 @@ out=Path(sys.argv[1]).resolve()
 out.parent.mkdir(parents=True,exist_ok=True)
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
     for name,path in [('module.prop',root/'module.prop'),('README.md',root/'README.md'),
+                      ('customize.sh',root/'customize.sh'),
                       ('game_enabled',root/'game_enabled'),('hunter_enabled',root/'hunter_enabled'),
                       ('control.sh',root/'control.sh'),('webroot/index.html',root/'webroot/index.html'),
                       ('LICENSES/Apache-2.0.txt',root/'LICENSE-APACHE-2.0.txt'),
@@ -15,7 +16,7 @@ with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
         z.write(path,name)
 with zipfile.ZipFile(out) as z:
     assert z.testzip() is None
-    assert set(z.namelist())=={'module.prop','README.md','game_enabled','hunter_enabled','control.sh',
+    assert set(z.namelist())=={'module.prop','README.md','customize.sh','game_enabled','hunter_enabled','control.sh',
                               'webroot/index.html','LICENSES/Apache-2.0.txt','LICENSES/Zygisk-ISC.txt','zygisk/arm64-v8a.so'}
     assert not any('xposed' in n.lower() or 'lsp' in n.lower() for n in z.namelist())
 print('candidate_zip=',out)

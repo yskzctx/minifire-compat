@@ -16,7 +16,7 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Zygisk · v0.5.4</div><h1>迷枪苹果区兼容</h1>
+  <div class="eyebrow">Zygisk · v0.5.5</div><h1>迷枪苹果区兼容</h1>
   <p>分别控制游戏和 Hunter 的模块加载。开关保存后，完全退出目标应用再打开即可生效。</p>
   <section class="card row"><div><h2>游戏兼容</h2><div class="sub">com.miniworldroyale.sparkgame</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="游戏兼容"><span class="track"></span></label></section>
   <section class="card row"><div><h2>Hunter 检查</h2><div class="sub">com.zhenxi.hunter</div></div><label class="switch"><input id="hunter" type="checkbox" disabled aria-label="Hunter 检查"><span class="track"></span></label></section>
@@ -59,6 +59,21 @@
     }
     for(const dir of new Set(dirs)){
       const output=ksu.exec('cat '+dir+'/game_enabled '+dir+'/hunter_enabled 2>&1');
+      if(typeof output==='string' && /^[01]\r?\n[01]\s*$/.test(output)){
+        backend={type:'direct',dir};return backend;
+      }
+      if(typeof output==='string' && output.trim()) detail=output.trim().slice(0,100);
+    }
+    for(const dir of new Set(dirs)){
+      const prop=ksu.exec('cat '+dir+'/module.prop 2>&1');
+      if(typeof prop!=='string' || !/^id=minifire_compat_zygisk\s*$/m.test(prop)) continue;
+      const code=/^versionCode=(\d+)\s*$/m.exec(prop);
+      if(!code || Number(code[1])<501) continue;
+      const gameFile=dir+'/game_enabled',hunterFile=dir+'/hunter_enabled';
+      const initialize="[ -f "+gameFile+" ] || { printf '0\\n' > "+gameFile+" && chmod 0644 "+gameFile+"; }; "+
+        "[ -f "+hunterFile+" ] || { printf '0\\n' > "+hunterFile+" && chmod 0644 "+hunterFile+"; }; "+
+        'cat '+gameFile+' '+hunterFile+' 2>&1';
+      const output=ksu.exec(initialize);
       if(typeof output==='string' && /^[01]\r?\n[01]\s*$/.test(output)){
         backend={type:'direct',dir};return backend;
       }
