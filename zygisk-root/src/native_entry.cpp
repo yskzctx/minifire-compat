@@ -1,5 +1,6 @@
 #include "login_filter.hpp"
 #include "binary_guard.hpp"
+#include <android/log.h>
 #include <atomic>
 #include <cstdint>
 #include <dlfcn.h>
@@ -26,6 +27,9 @@ static LuaCFunction open_backup = nullptr, encode_backup = nullptr, decode_backu
 static LuaCFunction (*to_cfunction)(lua_State*, int) = nullptr;
 static std::mutex install_mutex;
 static bool library_ready = false, encoder_ready = false;
+static void log_stage(int value) {
+    __android_log_print(ANDROID_LOG_INFO,"MinifireCompatZ","native_stage=%d",value);
+}
 
 static std::string_view bounded_name(const char* name) {
     if (!name) return {};
@@ -66,6 +70,8 @@ static int encode_replacement(lua_State* state) {
         stats.original_channel.store(result.original_channel); stats.selected_channel.store(result.selected_channel);
         stats.version_profile.store(result.version_profile ? 1 : 0);
         if (result.message==1) terminal_count.fetch_add(1); else lobby_count.fetch_add(1);
+        __android_log_print(ANDROID_LOG_INFO,"MinifireCompatZ","login_filter message=%d applied=%d profile=%d",
+                            result.message,result.applied?1:0,result.version_profile?1:0);
     }
     return encode_backup(state);
 }
@@ -115,7 +121,7 @@ static int open_replacement(lua_State* state) {
                            reinterpret_cast<void**>(&encode_backup))!=0 || !encode_backup) {
             stage.store(-3); return results;
         }
-        encoder_ready=true; stage.store(4);
+        encoder_ready=true; stage.store(4); log_stage(4);
         Dl_info decode_info{};
         if (decoder && dladdr(reinterpret_cast<void*>(decoder),&decode_info) &&
             decode_info.dli_fbase==api_info.dli_fbase &&
@@ -134,9 +140,9 @@ static void on_loaded(const char* name, void* handle) {
     if (library_ready) return;
     const auto open=symbol<LuaCFunction>(handle,"luaopen_pb");
     Dl_info image{};
-    if (!open || !dladdr(reinterpret_cast<void*>(open),&image)) { stage.store(-2); return; }
+    if (!open || !dladdr(reinterpret_cast<void*>(open),&image)) { stage.store(-2); log_stage(-2); return; }
     NoteCheck check{image.dli_fbase,false}; dl_iterate_phdr(check_library_note,&check);
-    if (!check.found) { stage.store(2); return; }
+    if (!check.found) { stage.store(2); log_stage(2); return; }
     api={symbol<decltype(api.gettop)>(handle,"lua_gettop"),symbol<decltype(api.settop)>(handle,"lua_settop"),
         symbol<decltype(api.type)>(handle,"lua_type"),symbol<decltype(api.tolstring)>(handle,"lua_tolstring"),
         symbol<decltype(api.tonumber)>(handle,"lua_tonumber"),symbol<decltype(api.pushinteger)>(handle,"lua_pushinteger"),
@@ -145,12 +151,12 @@ static void on_loaded(const char* name, void* handle) {
     to_cfunction=symbol<decltype(to_cfunction)>(handle,"lua_tocfunction");
     if (!api.gettop || !api.settop || !api.type || !api.tolstring || !api.tonumber || !api.pushinteger ||
         !api.pushstring || !api.rawget || !api.rawset || !api.checkstack || !to_cfunction) {
-        stage.store(-2); return;
+        stage.store(-2); log_stage(-2); return;
     }
     const auto hook=hook_function.load();
     if (!hook || hook(reinterpret_cast<void*>(open),reinterpret_cast<void*>(open_replacement),
                        reinterpret_cast<void**>(&open_backup))!=0 || !open_backup) { stage.store(-3); return; }
-    library_ready=true; stage.store(3);
+    library_ready=true; stage.store(3); log_stage(3);
 }
 extern "C" __attribute__((visibility("default"),used)) OnLoaded native_init(const NativeAPIEntries* entries) {
     if (!entries || (entries->version!=1 && entries->version!=2) || !entries->hook) {

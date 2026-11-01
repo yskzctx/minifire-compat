@@ -36,28 +36,30 @@ static int hook(void* address,void* replacement,void** original) {
     return DobbyHook(address,replacement,original);
 }
 class GameModule final:public zygisk::ModuleBase {
-    zygisk::Api* api_=nullptr; JNIEnv* env_=nullptr; bool selected_=false;
+    zygisk::Api* api_=nullptr; JNIEnv* env_=nullptr; Target target_=Target::None;
 public:
     void onLoad(zygisk::Api* api,JNIEnv* env) override { api_=api; env_=env; }
     void preAppSpecialize(zygisk::AppSpecializeArgs* args) override {
         const char* name=args->nice_name?env_->GetStringUTFChars(args->nice_name,nullptr):nullptr;
         const char* data=args->app_data_dir?env_->GetStringUTFChars(args->app_data_dir,nullptr):nullptr;
-        selected_=name&&data&&target_process(name,data,args->uid);
+        target_=name&&data?target_process(name,data,args->uid):Target::None;
         if (name) env_->ReleaseStringUTFChars(args->nice_name,name);
         if (data) env_->ReleaseStringUTFChars(args->app_data_dir,data);
-        if (selected_) {
+        if (target_!=Target::None) {
             int dir=api_->getModuleDir();
-            if (dir<0) selected_=false;
+            if (dir<0) target_=Target::None;
             else {
-                int fd=openat(dir,"enabled",O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
-                char flag=0; selected_=fd>=0 && read(fd,&flag,1)==1 && flag=='1';
+                const char* config=target_==Target::Game?"game_enabled":"hunter_enabled";
+                int fd=openat(dir,config,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+                char flag=0; bool enabled=fd>=0 && read(fd,&flag,1)==1 && flag=='1';
+                if (!enabled) target_=Target::None;
                 if (fd>=0) close(fd); close(dir);
             }
         }
-        if (!selected_) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
+        if (target_==Target::None) api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
     }
     void postAppSpecialize(const zygisk::AppSpecializeArgs*) override {
-        if (!selected_) return;
+        if (target_==Target::None) return;
         const NativeAPIEntries entries{2,hook,nullptr}; on_loaded=native_init(&entries);
         Java_com_codex_minifire_compatlab_NativeBridge_configure(nullptr,nullptr,5);
         void* plain=dlsym(RTLD_DEFAULT,"dlopen");
@@ -65,7 +67,7 @@ public:
         int ok=0;
         if (plain) ok+=DobbyHook(plain,(void*)replacement_dlopen,(void**)&original_dlopen)==0;
         if (extended) ok+=DobbyHook(extended,(void*)replacement_ext,(void**)&original_ext)==0;
-        __android_log_print(ok?ANDROID_LOG_INFO:ANDROID_LOG_WARN,"MinifireCompatZ","game_loader_hooks=%d",ok);
+        __android_log_print(ok?ANDROID_LOG_INFO:ANDROID_LOG_WARN,"MinifireCompatZ","target=%d loader_hooks=%d",static_cast<int>(target_),ok);
     }
     void preServerSpecialize(zygisk::ServerSpecializeArgs*) override { api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY); }
 };
