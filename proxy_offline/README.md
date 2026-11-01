@@ -12,6 +12,10 @@
 
 TLS 流量密钥只适用于对应连接，不能作为跨重启的缓存。若最终采用 HTTPS 解密代理，需要另行验证游戏的证书校验方式；如果采用短暂提取会话密钥的方式，每个新连接仍会需要新密钥，达不到“偶尔注入一次”的目标。
 
+## 响应中的材料
+
+本地资源的 protobuf 描述文件显示，中控 `ApiLoginResponseEntity` 含 `Token`、`OpenID` 和大厅地址；大厅 `LoginRsp` 含 `RefreshToken` 标志。Lua 流程将中控 `Token` 用于后续登录，并在大厅要求刷新时调用 `api/auth/refreshtoken`，保存返回的新 HTTP `Token`。这些是会话凭据的更新证据；没有字段或调用证据表明它们可用于解密未来 TLS 连接，或替代 `EncryptToSHA1ForLogin` 的签名材料。后续若做实机观察，应只记录字段是否出现和失效时间，不保存原始令牌值。
+
 ```powershell
 uv run --with UnityPy --with protobuf --with pytest python -m pytest -q proxy_offline/test_transform.py
 ```
