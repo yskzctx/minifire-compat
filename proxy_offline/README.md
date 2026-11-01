@@ -8,7 +8,7 @@
 
 ## 最小注入边界
 
-用户允许在必要时短暂加载目标进程以取得可复用的应用层签名材料，但不希望每次启动游戏都持续注入。实现前必须先证明材料确实固定、可在进程外重算签名；缓存要按游戏版本及材料指纹失效，并且不得记录手机号、验证码、令牌或原始请求。1.0.77 本地 `libil2cpp.so` 的方法表将 `Util.EncryptToSHA1ForLogin` 定位到 RVA `0x1dbbb48`。静态代码按顺序处理请求体、一个 16 字节字符串字面量和 `unique`；该字面量的 SHA-256 是 `7ae28f2f44dcfe16e83b9de24e02593199710fb309dffe0136902aa431949b24`。这证明存在固定输入，**尚不能证明它就是密钥或确认完整签名算法**。辅助方法的一部分本地机器码受保护，不能仅凭这段反汇编生成网络签名。
+用户允许在必要时短暂加载目标进程以取得可复用的应用层签名材料，但不希望每次启动游戏都持续注入。实现前必须先证明材料确实固定、可在进程外重算签名；缓存要按游戏版本及材料指纹失效，并且不得记录手机号、验证码、令牌或原始请求。1.0.77 本地 `libil2cpp.so` 的方法表将 `Util.EncryptToSHA1ForLogin` 定位到 RVA `0x1dbbb48`。静态代码按顺序处理请求体、一个 16 字节字符串字面量和 `unique`；该字面量的 SHA-256 是 `7ae28f2f44dcfe16e83b9de24e02593199710fb309dffe0136902aa431949b24`。`signing_inspect.py` 可复查方法表、ELF 引用和字面量指纹，遇到不匹配则报错，不输出字面量内容。这证明存在固定输入，**尚不能证明它就是密钥或确认完整签名算法**。辅助方法的一部分本地机器码受保护，不能仅凭这段反汇编生成网络签名。
 
 TLS 流量密钥只适用于对应连接，不能作为跨重启的缓存。若最终采用 HTTPS 解密代理，需要另行验证游戏的证书校验方式；如果采用短暂提取会话密钥的方式，每个新连接仍会需要新密钥，达不到“偶尔注入一次”的目标。
 
@@ -21,5 +21,5 @@ TLS 流量密钥只适用于对应连接，不能作为跨重启的缓存。若�
 按本地 1.0.77 `libil2cpp.so` 的方法表，`TcpSocketClient.ReadMessageBlocking` 位于 RVA `0x26b4bbc`，`writeMessage` 位于 `0x26b4ef4`。前者的可见代码有一次固定读取 6 字节的步骤；`sendBytes` 位于 RVA `0x26b52e8`，但其本地机器码受保护。不能据此认定完整帧格式，也不能认定大厅连接一定是明文。当前 `lobby_packet` 只接收**已经从流中提取的完整 `cmdpkg.CmdPacket` 消息体**，不能直接接到 TCP 字节流上。
 
 ```powershell
-uv run --with UnityPy --with protobuf --with pytest python -m pytest -q proxy_offline/test_transform.py
+uv run --with UnityPy --with protobuf --with pytest --with capstone --with pyelftools python -m pytest -q proxy_offline/test_transform.py proxy_offline/test_signing_inspect.py
 ```
