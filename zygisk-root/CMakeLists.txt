@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22)
+project(minifire_zygisk LANGUAGES CXX)
+add_library(minifire_zygisk SHARED src/zygisk_entry.cpp src/native_entry.cpp src/login_filter.cpp src/binary_guard.cpp)
+target_compile_features(minifire_zygisk PRIVATE cxx_std_17)
+target_compile_options(minifire_zygisk PRIVATE -Wall -Wextra -Werror -fvisibility=hidden -fstack-protector-strong)
+target_link_options(minifire_zygisk PRIVATE -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now)
+target_link_libraries(minifire_zygisk PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/libdobby.a dl log)

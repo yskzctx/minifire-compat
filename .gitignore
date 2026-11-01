@@ -1,6 +1,7 @@
 # Local Android environment and build outputs
 .gradle/
 **/build/
+**/tests/*.exe
 **/.cxx/
 **/.externalNativeBuild/
 local.properties
