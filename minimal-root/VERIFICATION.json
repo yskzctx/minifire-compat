@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0-minimal-candidate",
+  "date": "2026-11-02",
+  "device_tested": false,
+  "apple_role_login_verified": false,
+  "match_verified": false,
+  "lsposed_required": false,
+  "zygisk_next_required": true,
+  "explicit_business_hook_entries": 1,
+  "java_hooks": 0,
+  "loader_hooks": 0,
+  "decode_hooks": 0,
+  "network_hooks": 0,
+  "tls_hooks": 0,
+  "process_payload_libraries": 1,
+  "hook_lifetime": "Until game exits; switch disables rewriting without concurrent unhook",
+  "target_messages": [
+    "md.ApiLoginRequest",
+    "md.Login"
+  ],
+  "login_target_version": "1.0.79",
+  "known_libtolua_sha256": "7f61316eb49e95e416b2a96b744b3eb0cc94d9347bf3c3f5c5cf983bb18a05a6",
+  "runtime_full_binary_sha256_check": false,
+  "runtime_guards": [
+    "GNU Build ID",
+    "PT_LOAD readable/executable address bounds",
+    "32 original encoder instruction bytes"
+  ],
+  "proxy_used": false,
+  "certificate_mounts_used": false,
+  "iptables_rules_used": false,
+  "global_selinux_changes": false,
+  "host_checks": {
+    "real_lua_protobuf_filter_cases": 22,
+    "build_id_guard_cases": 5,
+    "profile_proof_tests": 2,
+    "root_control_migration_and_readonly_mapping_tests": 5,
+    "process_policy_assertions": 9,
+    "webui_toggle_copy_export_target_mock": "passed",
+    "shell_syntax": "passed",
+    "android_arm64_api26_build": "passed",
+    "elf_load_alignment_minimum": 16384,
+    "dynamic_exports": [
+      "zygisk_module_entry",
+      "zygisk_companion_entry"
+    ],
+    "zip_integrity_allowlist": "passed"
+  },
+  "unverified": [
+    "Zygisk Next module loading on user device",
+    "Android SELinux permissions for config mmap/log FDs and system collector",
+    "Actual Dobby installation and first encode timing in game",
+    "Apple role 9882H1N and match acceptance",
+    "Reboot and runtime switch on Android",
+    "BoxProxy coexistence on user device"
+  ],
+  "artifact": {
+    "filename": "Minifire-Minimal-Hook-2.0.0-candidate.zip",
+    "bytes": 97755,
+    "sha256": "9905d89786922a632f26e9150dfddddd3704002cc98e3ef75835c13797c8a139"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "sha256": "7f61316eb49e95e416b2a96b744b3eb0cc94d9347bf3c3f5c5cf983bb18a05a6",
+  "encode_rva": 114016,
+  "encode_prefix": "ff0302d1f85f04a9f65705a9f44f06a9fd7b07a9fdc3019157d03bd5e81640f9",
+  "api": {
+    "lua_pushinteger": 324856,
+    "lua_gettop": 320280,
+    "lua_settop": 320300,
+    "lua_rawget": 327196,
+    "lua_checkstack": 319924,
+    "lua_pushstring": 325060,
+    "lua_type": 320876,
+    "lua_rawset": 329012,
+    "lua_tolstring": 323476,
+    "lua_tonumber": 322252
+  },
+  "note": "040000001400000003000000474e550049887bb2b68937aa678822694ed61b7527a0da3a"
+}
