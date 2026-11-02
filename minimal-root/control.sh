@@ -34,6 +34,7 @@ case "$1" in
     else
         pid=$(pidof "$GAME" 2>/dev/null | awk '{print $1}')
         case "$pid" in ''|*[!0-9]*) ;; *)
+            stage=module_not_observed
             line=$(grep -F "\"pid\":$pid," "$STATE/hooks.jsonl" 2>/dev/null | tail -n 1)
             collected=$(grep -F "\"pid\":$pid," "$STATE/system-module.log" 2>/dev/null | tail -n 1)
             [ -z "$collected" ] || line=$collected
@@ -43,6 +44,7 @@ case "$1" in
                 *'"stage":"login_profile_rejected"'*) stage=login_profile_rejected;;
                 *'rejected"'*|*'failed"'*|*'unavailable"'*|*'timeout"'*) stage=hook_failed;;
                 *'"stage":"waiting_game_library"'*|*'"stage":"target_selected"'*) stage=waiting_library;;
+                *'"stage":"root_selection_received"'*|*'"stage":"root_config_verified"'*|*'"stage":"app_config_received"'*) stage=module_startup_incomplete;;
             esac;;
         esac
     fi
@@ -51,6 +53,18 @@ case "$1" in
  logs)
     printf '[module]\n'; cat "$MODDIR/module.prop"
     printf '\n[module status]\n'; sh "$MODDIR/control.sh" status
+    printf '\n[loader environment]\n'
+    if [ -f "$MODDIR/zygisk/arm64-v8a.so" ]; then printf 'arm64_payload=present\n'; else printf 'arm64_payload=missing\n'; fi
+    for marker in disable remove; do if [ -f "$MODDIR/$marker" ]; then printf '%s=present\n' "$marker"; fi; done
+    for prop in ro.product.cpu.abi ro.zygote; do printf '%s=' "$prop"; getprop "$prop" 2>/dev/null || :; done
+    game_pid=$(pidof "$GAME" 2>/dev/null | awk '{print $1}')
+    case "$game_pid" in ''|*[!0-9]*) printf 'game_pid=not_found\n';; *) printf 'game_pid=%s\ngame_executable=' "$game_pid"; readlink "/proc/$game_pid/exe" 2>/dev/null || :;; esac
+    for property in /data/adb/modules/zygisk*/module.prop /data/adb/modules/rezygisk/module.prop; do
+        if [ -f "$property" ]; then
+            printf '\n[zygisk provider]\n'; sed -n '/^id=/p;/^name=/p;/^version=/p' "$property"
+            if [ -f "${property%/*}/disable" ]; then printf 'provider_disabled=1\n'; fi
+        fi
+    done
     for file in migration.txt boot.txt collector-error.txt hooks.jsonl system-module.log.2 system-module.log.1 system-module.log; do
         if [ -f "$STATE/$file" ]; then printf '\n[%s]\n' "$file"; tail -n 1500 "$STATE/$file"; fi
     done

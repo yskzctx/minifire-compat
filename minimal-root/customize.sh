@@ -23,7 +23,7 @@ mkdir -p "$MODPATH/state" && chmod 0700 "$MODPATH/state" || abort 'Cannot initia
 set_perm "$MODPATH/game_enabled" 0 0 0644
 set_perm "$MODPATH/target_package" 0 0 0644
 set_perm "$MODPATH/state" 0 0 0700
-for file in config.sh control.sh service.sh uninstall.sh; do set_perm "$MODPATH/$file" 0 0 0755; done
+for file in config.sh control.sh service.sh collector.sh uninstall.sh; do set_perm "$MODPATH/$file" 0 0 0755; done
 set_perm "$MODPATH/zygisk/arm64-v8a.so" 0 0 0644
 ui_print 'Single pb.encode Hook installed. Requires enabled Zygisk Next and a reboot.'
 ui_print 'No LSPosed game scope. Fully exit/reopen game after enabling or selecting a target.'

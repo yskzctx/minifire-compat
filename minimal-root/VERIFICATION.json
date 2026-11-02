@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0-minimal-candidate",
+  "version": "2.0.1-minimal-candidate",
   "date": "2026-11-02",
   "device_tested": false,
   "apple_role_login_verified": false,
@@ -13,7 +13,7 @@
   "network_hooks": 0,
   "tls_hooks": 0,
   "process_payload_libraries": 1,
-  "hook_lifetime": "Until game exits; switch disables rewriting without concurrent unhook",
+  "hook_lifetime": "Until game exits; switch and target changes take effect after fully reopening game",
   "target_messages": [
     "md.ApiLoginRequest",
     "md.Login"
@@ -34,7 +34,7 @@
     "real_lua_protobuf_filter_cases": 22,
     "build_id_guard_cases": 5,
     "profile_proof_tests": 2,
-    "root_control_migration_and_readonly_mapping_tests": 5,
+    "root_control_migration_and_readonly_mapping_tests": 7,
     "process_policy_assertions": 9,
     "webui_toggle_copy_export_target_mock": "passed",
     "shell_syntax": "passed",
@@ -44,19 +44,24 @@
       "zygisk_module_entry",
       "zygisk_companion_entry"
     ],
-    "zip_integrity_allowlist": "passed"
+    "zip_integrity_allowlist": "passed",
+    "logcat_eof_restart_mock": "passed: first reader EOF, second reader captured hook event",
+    "running_game_without_module_record": "passed: module_not_observed, not waiting_game"
   },
   "unverified": [
-    "Zygisk Next module loading on user device",
-    "Android SELinux permissions for config mmap/log FDs and system collector",
+    "Zygisk Next module loading and Root companion handshake on user device",
     "Actual Dobby installation and first encode timing in game",
     "Apple role 9882H1N and match acceptance",
-    "Reboot and runtime switch on Android",
+    "Reboot behavior and Root log collector recovery on Android",
+    "Exact cause of user 2.0.0 absence of module events",
     "BoxProxy coexistence on user device"
   ],
   "artifact": {
-    "filename": "Minifire-Minimal-Hook-2.0.0-candidate.zip",
-    "bytes": 97755,
-    "sha256": "9905d89786922a632f26e9150dfddddd3704002cc98e3ef75835c13797c8a139"
-  }
+    "filename": "Minifire-Minimal-Hook-2.0.1-candidate.zip",
+    "bytes": 99581,
+    "sha256": "51382311c68c344f8f0dba0689948e9b26a2c1ff2af7a38a8575eea666a6ad2e"
+  },
+  "private_file_fds_passed_to_app": 0,
+  "private_config_mappings_in_app": 0,
+  "configuration_channel": "Root companion selection and UID validation; fixed numeric reply; Root-persisted acknowledgement"
 }

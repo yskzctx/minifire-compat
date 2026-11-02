@@ -7,7 +7,7 @@ offset=struct.unpack_from('<Q',data,32)[0]; size,count=struct.unpack_from('<HH',
 for index in range(count):
     at=offset+index*size
     if struct.unpack_from('<I',data,at)[0]==1: assert struct.unpack_from('<Q',data,at+48)[0]>=16384
-names=['module.prop','game_enabled','target_package','config.sh','customize.sh','service.sh','control.sh','uninstall.sh','webroot/index.html','README.md','COMPARISON.md']
+names=['module.prop','game_enabled','target_package','config.sh','customize.sh','service.sh','collector.sh','control.sh','uninstall.sh','webroot/index.html','README.md','COMPARISON.md']
 files=[(name,root/name) for name in names]
 files += [('zygisk/arm64-v8a.so',binary),('LICENSES/Apache-2.0.txt',root/'../zygisk-root/LICENSE-APACHE-2.0.txt'),('LICENSES/Zygisk-ISC.txt',root/'../zygisk-root/LICENSE-ZYGISK-ISC.txt')]
 out=Path(sys.argv[1]).resolve();out.parent.mkdir(parents=True,exist_ok=True)

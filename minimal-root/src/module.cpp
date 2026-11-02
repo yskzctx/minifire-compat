@@ -14,7 +14,6 @@
 #include <link.h>
 #include <pthread.h>
 #include <sched.h>
-#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -23,12 +22,10 @@
 
 namespace {
 constexpr const char* module_dir="/data/adb/modules/minifire_compat_zygisk";
-int journal_fd=-1;
-const volatile char* enabled_page=nullptr;
+bool enabled_snapshot=false;
 LuaApi lua{};
 std::atomic<LuaCFunction> encoder{nullptr};
 std::atomic<bool> installed{false}, encode_seen{false};
-std::atomic<bool> journal_warning{false};
 
 void event(const char* stage,const FilterResult* result=nullptr,int error=0) {
     char line[640]; timespec stamp{}; clock_gettime(CLOCK_REALTIME,&stamp);
@@ -38,12 +35,6 @@ void event(const char* stage,const FilterResult* result=nullptr,int error=0) {
         result&&result->applied?1:0,result?result->original_os:-1,result?result->selected_os:-1,
         result?result->original_channel:-1,result?result->selected_channel:-1,result&&result->version_profile?1:0);
     if(n<=0 || static_cast<std::size_t>(n)>=sizeof(line)) return;
-    struct stat info{};
-    if(journal_fd>=0 && fstat(journal_fd,&info)==0 && info.st_size<1024*1024) {
-        ssize_t count; do { count=write(journal_fd,line,static_cast<std::size_t>(n)); } while(count<0&&errno==EINTR);
-        if(count!=n && !journal_warning.exchange(true))
-            __android_log_print(ANDROID_LOG_WARN,"MinifireCompatM","private_log_append_failed errno=%d; system collector remains available",errno);
-    }
     __android_log_print(ANDROID_LOG_INFO,"MinifireCompatM","%s",line);
 }
 
@@ -53,7 +44,7 @@ int encode_replacement(lua_State* state) {
     const auto original=encoder.load(std::memory_order_acquire);
     if(!original) { event("encoder_trampoline_unavailable"); return 0; }
     if(!encode_seen.exchange(true)) event("encoder_called");
-    if(enabled_page && *enabled_page=='1') {
+    if(enabled_snapshot) {
         // No lock or C++ object requiring destruction may span Lua's longjmp.
         const auto result=apply_login_filter(lua,state,5);
         if(result.message) event(result.applied?(result.message==1?"terminal_login_rewritten":"lobby_login_rewritten"):"login_profile_rejected",&result);
@@ -109,7 +100,7 @@ int inspect_image(dl_phdr_info* image,std::size_t,void* output) {
 void* worker(void*) {
     event("waiting_game_library");
     for(int attempt=0;attempt<2100;++attempt) {
-        if(!enabled_page || *enabled_page!='1') { event("disabled_before_hook"); return nullptr; }
+        if(!enabled_snapshot) { event("disabled_before_hook"); return nullptr; }
         bool found=false;
         // Keep the dynamic linker's enumeration lock while validating/installing,
         // so the inspected image cannot unload between range checks and the hook.
@@ -133,83 +124,95 @@ bool small_file(int directory,const char* name,char* value,std::size_t capacity)
     return end>0;
 }
 
-struct Request { int uid; char package[256]; };
+struct Request { int uid; int pid; char package[256]; };
+struct Reply { int selected; int error; };
 void companion_error(const char* stage) {
     __android_log_print(ANDROID_LOG_WARN,"MinifireCompatM","root_companion stage=%s errno=%d",stage,errno);
+}
+void root_record(int fd,int pid,const char* stage,int code=0) {
+    if(fd<0) return;
+    struct stat info{};if(fstat(fd,&info)!=0 || info.st_size>=1024*1024) return;
+    char line[256];timespec now{};clock_gettime(CLOCK_REALTIME,&now);
+    const int n=std::snprintf(line,sizeof(line),"{\"time_unix\":%lld,\"pid\":%d,\"stage\":\"%s\",\"error\":%d}\n",
+        static_cast<long long>(now.tv_sec),pid,stage,code);
+    if(n>0 && static_cast<std::size_t>(n)<sizeof(line)) {
+        ssize_t result;do {result=write(fd,line,static_cast<std::size_t>(n));}while(result<0&&errno==EINTR);
+    }
+}
+void reply(int socket,int selected,int error=0) {
+    const Reply response{selected,error};
+    if(send(socket,&response,sizeof(response),MSG_NOSIGNAL)!=sizeof(response)) companion_error("reply_failed");
 }
 void companion(int socket) {
     timeval deadline{3,0}; setsockopt(socket,SOL_SOCKET,SO_RCVTIMEO,&deadline,sizeof(deadline));
     Request request{};
-    if(recv(socket,&request,sizeof(request),MSG_WAITALL)!=sizeof(request) || request.package[255]!=0 || !valid_package(request.package)) { companion_error("invalid_request"); return; }
+    if(recv(socket,&request,sizeof(request),MSG_WAITALL)!=sizeof(request) || request.pid<=1 || request.package[255]!=0 || !valid_package(request.package)) { companion_error("invalid_request"); return; }
     int dir=open(module_dir,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
-    if(dir<0) { companion_error("module_directory_open_failed"); return; }
+    if(dir<0) { companion_error("module_directory_open_failed");reply(socket,-1,errno);return; }
     char package[256]{},flag[8]{};
-    bool valid=small_file(dir,"target_package",package,sizeof(package)) && std::strcmp(package,request.package)==0 &&
-        small_file(dir,"game_enabled",flag,sizeof(flag)) && std::strcmp(flag,"1")==0;
-    // Confirm the selected app identity against the root package registry, not
-    // an untrusted caller-supplied UID. Other Android users share the app ID.
-    bool uid_ok=false;
-    FILE* packages=std::fopen("/data/system/packages.list","r");
-    char row[4096],registered[256]; int uid=0;
-    if(packages) {
-        while(std::fgets(row,sizeof(row),packages)) if(std::sscanf(row,"%255s %d",registered,&uid)==2 &&
-            std::strcmp(registered,package)==0 && request.uid>=10000 && request.uid%100000==uid%100000) { uid_ok=true; break; }
-        std::fclose(packages);
-    }
-    if(!valid || !uid_ok) { companion_error(!valid?"config_target_or_switch_rejected":"package_registry_uid_rejected"); close(dir); return; }
+    const bool configured=small_file(dir,"target_package",package,sizeof(package)) && valid_package(package) && small_file(dir,"game_enabled",flag,sizeof(flag)) && (std::strcmp(flag,"0")==0 || std::strcmp(flag,"1")==0);
+    if(!configured) {companion_error("root_config_read_failed");reply(socket,-1,errno);close(dir);return;}
+    // Non-target main processes perform only this short selection exchange and
+    // unload. No private file, descriptor, mapping or hook is passed to them.
+    if(std::strcmp(package,request.package)!=0 || flag[0]!='1') {reply(socket,0);close(dir);return;}
     mkdirat(dir,"state",0700);
     int state=openat(dir,"state",O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
     struct stat state_info{};
     if(state<0 || fstat(state,&state_info)!=0 || state_info.st_uid!=0 || (state_info.st_mode&0077)) {
-        companion_error("root_state_permissions_rejected");
-        if(state>=0) close(state); close(dir); return;
+        companion_error("root_state_permissions_rejected");reply(socket,-1,errno);
+        if(state>=0) close(state);close(dir);return;
     }
-    int fds[2]={openat(dir,"game_enabled",O_RDONLY|O_CLOEXEC|O_NOFOLLOW),
-        openat(state,"hooks.jsonl",O_WRONLY|O_APPEND|O_CREAT|O_CLOEXEC|O_NOFOLLOW,0600)};
+    int log=openat(state,"hooks.jsonl",O_WRONLY|O_APPEND|O_CREAT|O_CLOEXEC|O_NOFOLLOW,0600);
     struct stat log_info{};
-    if(fds[0]>=0 && fds[1]>=0 && fstat(fds[1],&log_info)==0 && S_ISREG(log_info.st_mode) && log_info.st_uid==0 && !(log_info.st_mode&0077)) {
-        char ok=1; iovec payload{&ok,1};
-        alignas(cmsghdr) char control[CMSG_SPACE(sizeof(fds))]{};
-        msghdr message{}; message.msg_iov=&payload; message.msg_iovlen=1;
-        message.msg_control=control; message.msg_controllen=sizeof(control);
-        auto* header=CMSG_FIRSTHDR(&message); header->cmsg_level=SOL_SOCKET; header->cmsg_type=SCM_RIGHTS; header->cmsg_len=CMSG_LEN(sizeof(fds));
-        std::memcpy(CMSG_DATA(header),fds,sizeof(fds));
-        if(sendmsg(socket,&message,MSG_NOSIGNAL)!=1) companion_error("fd_transfer_failed");
-    } else companion_error("config_or_log_open_failed");
-    for(int fd:fds) if(fd>=0) close(fd);
-    close(state); close(dir);
+    if(log<0 || fstat(log,&log_info)!=0 || !S_ISREG(log_info.st_mode) || log_info.st_uid!=0 || (log_info.st_mode&0077)) {
+        companion_error("root_log_open_failed");reply(socket,-1,errno);
+        if(log>=0) close(log);close(state);close(dir);return;
+    }
+    root_record(log,request.pid,"root_selection_received");
+    bool uid_ok=false;
+    FILE* packages=std::fopen("/data/system/packages.list","r");
+    char row[4096],registered[256];int uid=0;
+    if(packages) {
+        while(std::fgets(row,sizeof(row),packages)) if(std::sscanf(row,"%255s %d",registered,&uid)==2 &&
+            std::strcmp(registered,package)==0 && request.uid>=10000 && request.uid%100000==uid%100000) {uid_ok=true;break;}
+        std::fclose(packages);
+    }
+    if(!uid_ok) {root_record(log,request.pid,"package_registry_uid_rejected",errno);reply(socket,-1,errno);}
+    else {
+        root_record(log,request.pid,"root_config_verified");reply(socket,1);
+        char ack=0;
+        if(recv(socket,&ack,1,MSG_WAITALL)==1 && ack=='A') root_record(log,request.pid,"app_config_received");
+        else root_record(log,request.pid,"app_config_ack_failed",errno);
+    }
+    close(log);close(state);close(dir);
 }
-
 class Module final:public zygisk::ModuleBase {
     zygisk::Api* api_=nullptr; JNIEnv* env_=nullptr; bool selected_=false;
 public:
     void onLoad(zygisk::Api* api,JNIEnv* env) override { api_=api; env_=env; }
     void preAppSpecialize(zygisk::AppSpecializeArgs* args) override {
-        int dir=api_->getModuleDir(); char package[256]{},flag[8]{};
-        const bool configured=dir>=0 && small_file(dir,"target_package",package,sizeof(package)) && small_file(dir,"game_enabled",flag,sizeof(flag)) && std::strcmp(flag,"1")==0;
-        if(dir>=0) close(dir);
         const char* name=args->nice_name?env_->GetStringUTFChars(args->nice_name,nullptr):nullptr;
         const char* data=args->app_data_dir?env_->GetStringUTFChars(args->app_data_dir,nullptr):nullptr;
-        selected_=configured && name && data && selected_process(name,data,args->uid,package);
+        Request request{};request.uid=args->uid;request.pid=getpid();
+        const bool candidate=name && data && selected_process(name,data,args->uid,name);
+        if(candidate) std::memcpy(request.package,name,std::strlen(name)+1);
         if(name) env_->ReleaseStringUTFChars(args->nice_name,name);
         if(data) env_->ReleaseStringUTFChars(args->app_data_dir,data);
-        if(!selected_) { api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY); return; }
+        if(!candidate) {api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);return;}
+        // All private filesystem checks happen in the root companion. getModuleDir
+        // does not grant superuser/SELinux permissions to this zygote callback.
         int socket=api_->connectCompanion();
-        if(socket<0) { fail("root_companion_unavailable"); return; }
-        timeval deadline{3,0}; setsockopt(socket,SOL_SOCKET,SO_RCVTIMEO,&deadline,sizeof(deadline));
-        Request request{}; request.uid=args->uid; std::memcpy(request.package,package,std::strlen(package)+1);
-        if(send(socket,&request,sizeof(request),MSG_NOSIGNAL)!=sizeof(request)) { close(socket); fail("root_companion_send_failed"); return; }
-        char ok=0; iovec payload{&ok,1}; alignas(cmsghdr) char control[CMSG_SPACE(2*sizeof(int))]{};
-        msghdr message{};message.msg_iov=&payload;message.msg_iovlen=1;message.msg_control=control;message.msg_controllen=sizeof(control);
-        const auto received=recvmsg(socket,&message,MSG_CMSG_CLOEXEC); close(socket);
-        auto* header=CMSG_FIRSTHDR(&message); int fds[2]={-1,-1};
-        if(received!=1 || ok!=1 || (message.msg_flags&MSG_CTRUNC) || !header || header->cmsg_level!=SOL_SOCKET || header->cmsg_type!=SCM_RIGHTS || header->cmsg_len!=CMSG_LEN(sizeof(fds))) {
-            fail("root_companion_config_or_log_failed"); return;
+        if(socket<0) {fail("root_companion_unavailable");return;}
+        timeval deadline{3,0};setsockopt(socket,SOL_SOCKET,SO_RCVTIMEO,&deadline,sizeof(deadline));
+        if(send(socket,&request,sizeof(request),MSG_NOSIGNAL)!=sizeof(request)) {close(socket);fail("root_companion_send_failed");return;}
+        Reply response{};
+        const auto received=recv(socket,&response,sizeof(response),MSG_WAITALL);
+        if(received!=sizeof(response) || response.selected<0 || response.selected>1) {
+            close(socket);errno=response.error;fail("root_companion_config_failed");return;
         }
-        std::memcpy(fds,CMSG_DATA(header),sizeof(fds));
-        void* page=mmap(nullptr,4096,PROT_READ,MAP_SHARED,fds[0],0); close(fds[0]);
-        if(page==MAP_FAILED || !api_->exemptFd(fds[1])) { if(page!=MAP_FAILED) munmap(page,4096);close(fds[1]);fail("config_mapping_or_log_fd_failed");return; }
-        enabled_page=static_cast<const volatile char*>(page);journal_fd=fds[1];
+        if(response.selected==0) {close(socket);api_->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);return;}
+        selected_=true;enabled_snapshot=true;
+        const char ack='A';send(socket,&ack,1,MSG_NOSIGNAL);close(socket);
         event("target_selected");
     }
     void postAppSpecialize(const zygisk::AppSpecializeArgs*) override {

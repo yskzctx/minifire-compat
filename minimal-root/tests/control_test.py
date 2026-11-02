@@ -45,6 +45,28 @@ class ControlTests(unittest.TestCase):
         self.assertIn('stage=hook_installed',self.call('status').stdout)
         file.write_text('prefix {"pid":16585,"stage":"client_build_id_rejected"}\n')
         self.assertIn('stage=hook_failed',self.call('status').stdout)
+    def test_running_game_without_module_evidence_is_not_waiting_game(self):
+        self.call('game','1')
+        self.assertIn('stage=module_not_observed',self.call('status').stdout)
+        (self.dir/'state/hooks.jsonl').write_text('{"pid":16585,"stage":"app_config_received"}\n')
+        self.assertIn('stage=module_startup_incomplete',self.call('status').stdout)
+    def test_collector_recovers_from_unexpected_eof(self):
+        shutil.copyfile(ROOT/'collector.sh',self.dir/'collector.sh')
+        (self.dir/'bin/logcat').write_text('''#!/bin/sh
+dir=${0%/*}/..
+case "$*" in *'-b main'*) ;; *) exit 8;; esac
+count=$(cat "$dir/state/mock-count" 2>/dev/null || printf 0)
+count=$((count+1)); printf '%s' "$count" > "$dir/state/mock-count"
+if [ "$count" = 1 ]; then printf 'logcat: Unexpected EOF!\\n' >&2; exit 1; fi
+printf '{"pid":16585,"stage":"hook_installed"}\\n' >> "$dir/state/system-module.log"
+touch "$dir/disable"
+''',newline='\n')
+        env=os.environ.copy();env['PATH']=str(self.dir/'bin')+os.pathsep+env['PATH']
+        result=subprocess.run([str(BASH),(self.dir/'collector.sh').as_posix()],env=env,text=True,encoding='utf8',capture_output=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual((self.dir/'state/mock-count').read_text(),'2')
+        self.assertIn('Unexpected EOF',(self.dir/'state/collector-error.txt').read_text())
+        self.assertIn('hook_installed',(self.dir/'state/system-module.log').read_text())
     def test_migration_cleanup_preserves_switch_and_aborts_on_failure(self):
         installed=self.dir/'old';installed.mkdir()
         (installed/'module.prop').write_text('versionCode=1006\n');(installed/'game_enabled').write_text('1\n')
