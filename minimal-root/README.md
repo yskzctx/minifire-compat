@@ -1,6 +1,6 @@
 # 迷枪苹果区兼容：单入口 Hook 候选
 
-2.0.1 是新实现，借用现有 Zygisk Next 的公开 Zygisk API 加载一个 ARM64 模块库。不是把之前失败的双库/加载器 Hook 方案重新打包。无需 LSPosed 游戏作用域；必须启用 Zygisk Next，并允许它对目标应用加载模块。
+2026-11-02 用户已确认 2.0.1 登录成功；原始成功 ZIP 保持不变。2.0.1 是新实现，借用现有 Zygisk Next 的公开 Zygisk API 加载一个 ARM64 模块库。不是把之前失败的双库/加载器 Hook 方案重新打包。无需 LSPosed 游戏作用域；必须启用 Zygisk Next，并允许它对目标应用加载模块。
 
 只安装一个业务 Hook：已核对 `libtolua.so` 中 protobuf 注册表指向的 `pb.encode` 函数。工作线程通过已加载库枚举查找游戏 Lua 库，验证 GNU Build ID、可执行范围和编码入口 32 字节原始指令后安装。不会 Hook `dlopen`、`android_dlopen_ext`、`luaopen_pb`、`pb.decode`、Java 方法、网络读写或证书验证。找到并安装后，工作线程结束。
 
@@ -29,8 +29,8 @@
 
 用户 2.0.0 日志仅证实旧代理清理成功，以及 logcat EOF；不能确认模块是否被加载或私有配置访问是否被 SELinux 拒绝。本版修复代码中存在的静默退出路径与日志收集单次退出缺陷，不将可能原因写成已确认的设备根因。官方 Zygisk 说明确认应用回调不是完整 Root 环境，目录访问受 SELinux 限制：[公开接口说明](https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp)。
 
-电脑的原生编译、Lua/protobuf 测试和脚本测试不代表真机 Hook 安装或跨区登录成功。2.0.1 尚需用户手机验收；原 0.4.1 的成功不能代替本版验收。
+电脑的原生编译、Lua/protobuf 测试和脚本测试不代表真机 Hook 安装或跨区登录成功。用户已确认本版跨区登录成功，来源为用户反馈；本轮没有独立 ADB 验证，也没有追加确认本版对局和重启。
 
 ## 构建
 
-`powershell -File minimal-root/build.ps1`，NDK 26.3.11579264 / API26 / ARM64，静态 C++ 运行库、ELF LOAD 至少 16KiB 对齐。单个发行库位于 `zygisk/arm64-v8a.so`；Dobby 静态链接，保留 Apache 2.0 许可证，Zygisk 公开头文件保留 ISC 许可证。未分发 Zygisk Next 本体。
+`powershell -File minimal-root/build.ps1`，NDK 26.3.11579264 / API26 / ARM64，静态 C++ 运行库、ELF LOAD 至少 16KiB 对齐。单个发行库位于 `zygisk/arm64-v8a.so`；Dobby 静态链接，依赖与许可证保存在 `vendor/`；保留 Apache 2.0 许可证，Zygisk 公开头文件保留 ISC 许可证。未分发 Zygisk Next 本体。

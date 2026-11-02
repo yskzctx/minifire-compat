@@ -1,6 +1,6 @@
 #include <sys/types.h>
-#include "../../zygisk-root/vendor/zygisk.hpp"
-#include "../../zygisk-root/vendor/dobby.h"
+#include "../vendor/zygisk.hpp"
+#include "../vendor/dobby.h"
 #include "../../app/src/main/cpp/login_filter.hpp"
 #include "../../app/src/main/cpp/binary_guard.hpp"
 #include "policy.hpp"

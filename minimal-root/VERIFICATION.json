@@ -1,8 +1,8 @@
 {
   "version": "2.0.1-minimal-candidate",
   "date": "2026-11-02",
-  "device_tested": false,
-  "apple_role_login_verified": false,
+  "device_tested": true,
+  "apple_role_login_verified": true,
   "match_verified": false,
   "lsposed_required": false,
   "zygisk_next_required": true,
@@ -49,9 +49,9 @@
     "running_game_without_module_record": "passed: module_not_observed, not waiting_game"
   },
   "unverified": [
-    "Zygisk Next module loading and Root companion handshake on user device",
-    "Actual Dobby installation and first encode timing in game",
-    "Apple role 9882H1N and match acceptance",
+    "Independent ADB audit of Zygisk loading and Root handshake",
+    "Independent low-level Dobby installation/first-encode timing audit",
+    "Exact role UID and match acceptance; login success is user-reported",
     "Reboot behavior and Root log collector recovery on Android",
     "Exact cause of user 2.0.0 absence of module events",
     "BoxProxy coexistence on user device"
@@ -63,5 +63,9 @@
   },
   "private_file_fds_passed_to_app": 0,
   "private_config_mappings_in_app": 0,
-  "configuration_channel": "Root companion selection and UID validation; fixed numeric reply; Root-persisted acknowledgement"
+  "configuration_channel": "Root companion selection and UID validation; fixed numeric reply; Root-persisted acknowledgement",
+  "device_verification_source": "User report on 2026-11-02: 这次终于成功了; interpreted in context as Apple-role login success",
+  "independently_verified_via_adb": false,
+  "reboot_verified_this_version": false,
+  "cleanup_preserved_original_zip": true
 }

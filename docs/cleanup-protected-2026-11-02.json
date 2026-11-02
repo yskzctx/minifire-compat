@@ -1,0 +1,38 @@
+[
+  {
+    "path": "outputs\\Minifire-Compat-0.4.1.apk",
+    "sha256": "9b2b14b4bcda73ce17e8ff5020f5cf4a5039ad867a2c605db0808bed9db5ae86"
+  },
+  {
+    "path": "outputs\\Minifire-Compat-0.4.2.apk",
+    "sha256": "8aca8d036ebc84039208e69ba0d2f7cc9a99a239e034c18f2dfb154e50a255ae"
+  },
+  {
+    "path": "outputs\\Minifire-Compat-v0.4.1-repo.zip",
+    "sha256": "68303820edbed298ec46213a6320e631313627d5a15381c928fa795829151a84"
+  },
+  {
+    "path": "outputs\\Minifire-Compat-v0.4.1.bundle",
+    "sha256": "a8a144509d95a58c128b94b381b79f328c494e36d70aa10a099622ab58ebd983"
+  },
+  {
+    "path": "outputs\\Minifire-Minimal-Hook-2.0.1-candidate.zip",
+    "sha256": "51382311c68c344f8f0dba0689948e9b26a2c1ff2af7a38a8575eea666a6ad2e"
+  },
+  {
+    "path": "work\\device-reinstalled-1.0.77\\libtolua.so",
+    "sha256": "7f61316eb49e95e416b2a96b744b3eb0cc94d9347bf3c3f5c5cf983bb18a05a6"
+  },
+  {
+    "path": "work\\native-host\\lua51.dll",
+    "sha256": "8107a6da4b694042025777b689314974b7e99ba62a8a818f5e7e28545106dc7e"
+  },
+  {
+    "path": "work\\native-host\\pb.dll",
+    "sha256": "fe4ddfe83016ab7fcb6afe68d53b99ff5832f697576f1c10fec6372e20bea141"
+  },
+  {
+    "path": "work\\native-host\\md-descriptor.bytes",
+    "sha256": "aa4b4d3eee462ca9acdcd61d387684dc51289f8616880b41e0900abbbbc8d52e"
+  }
+]
