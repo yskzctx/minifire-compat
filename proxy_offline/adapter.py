@@ -16,8 +16,10 @@ from .signature import resign_if_verified
 
 
 class Journal:
-    EVENTS={'signature_verified','signature_unverified','request_rewritten','request_unchanged'}
-    FIELDS={'input_bytes','output_bytes','target_version'}
+    EVENTS={'signature_verified','signature_unverified','request_rewritten','request_unchanged',
+            'forward_started','forward_succeeded','upstream_tls_failed','upstream_io_failed','request_rejected',
+            'lobby_stream_started','lobby_frame_rewritten','lobby_protocol_unknown','lobby_io_failed','lobby_stream_closed'}
+    FIELDS={'input_bytes','output_bytes','target_version','status_code'}
 
     def __init__(self,path):
         self.path=Path(path)
@@ -60,8 +62,8 @@ class SignedLoginAdapter:
         self.protocol=protocol
         self.journal=journal
 
-    def terminal(self,body,unique,signature,material):
-        request_id=uuid.uuid4().hex
+    def terminal(self,body,unique,signature,material,*,request_id=None):
+        request_id=request_id or uuid.uuid4().hex
         if resign_if_verified(body,body,unique,material,signature) is None:
             self.journal.record('signature_unverified',request_id,input_bytes=len(body))
             return Result(body,signature,False)

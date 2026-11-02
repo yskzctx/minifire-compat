@@ -14,6 +14,7 @@ class FrameAdapter:
         self.buffer=bytearray()
         self.bypass=False
         self.last_event='waiting_header'
+        self.rewritten_count=0
 
     def feed(self,data):
         if self.bypass:return bytes(data)
@@ -39,6 +40,7 @@ class FrameAdapter:
                 if changed:
                     output.extend(b'SP'+struct.pack('<I',len(rewritten))+rewritten)
                     self.last_event='frame_rewritten'
+                    self.rewritten_count+=1
                 else:
                     output.extend(original);self.last_event='frame_unchanged'
             except Exception:

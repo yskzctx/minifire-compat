@@ -2,7 +2,7 @@
 
 `transform.py` 从本地安卓版资源包读取 `md.ApiLoginRequest`、`md.Login` 和 `cmdpkg.CmdPacket` 的 protobuf 描述文件，提供两个纯字节转换函数。只处理已知的登录命令、系统值、渠道值和版本；其他命令原样返回。构造器的 `target_version` 独立于安卓来源版本，默认 1.0.79；其他目标版本仅能证明离线字节转换，不代表苹果服务器接受。合成样例中不使用真实手机号、验证码或令牌。
 
-本目录目前**不是可运行的透明代理或 Root 模块**。它没有接入网络或解密 HTTPS。当前从 Lua 脚本可确认：中控 HTTPS 请求在 protobuf 编码后签名；大厅登录消息被封装进 `cmdpkg.CmdPacket` 后交给 TCP 客户端。游戏外改包必须分别完成这两条链路，才能替代游戏内 Hook。
+本目录提供 Python 参考实现：`transport.py` 可运行回环 HTTPS 反向转发服务，`tcp_transport.py` 可运行固定目的地址的 TCP/SP 转发服务。测试使用本地真实 TLS/TCP 连接，不连接游戏服务器。手机 Root 模块使用独立 Go 实现，见 [external-root](../external-root/README.md)。从 Lua 脚本可确认：中控 HTTPS 请求在 protobuf 编码后签名；大厅登录消息被封装进 `cmdpkg.CmdPacket` 后交给 TCP 客户端。真实游戏链路仍未验证。
 
 2026-11-02 电脑侧新增：`signature.py` 实现候选 SHA1(body || material || UTF8(unique))；`adapter.py` 必须先验证原请求签名才能改写并重新签名，核对失败保留原始请求。该公式尚无真实游戏请求验证。材料由调用者提供，不嵌入源码、安装包或日志。JSONL 日志使用固定事件与字段记录签名校验、改写、原样放行及请求关联 ID；不记录请求体、签名、材料、时间参数或账号凭据。日志写入失败保留可查询的错误类型和 errno，不中断请求处理。
 
@@ -25,5 +25,5 @@ TLS 流量密钥只适用于对应连接，不能作为跨重启的缓存。若�
 按本地 1.0.77 `libil2cpp.so` 的方法表，`TcpSocketClient.ReadMessageBlocking` 位于 RVA `0x26b4bbc`，`writeMessage` 位于 `0x26b4ef4`。`sendBytes` 位于 RVA `0x26b52e8`，其本地机器码受保护。上述 SP 编解码已定位，但线上是否还有额外处理仍需确认。`lobby_packet` 接收完整 `cmdpkg.CmdPacket` 消息体，`FrameAdapter(protocol.lobby_packet)` 可处理已确认使用 SP 编码的字节流；尚未接入任何真实连接。
 
 ```powershell
-uv run --with UnityPy --with protobuf --with pytest --with capstone --with pyelftools python -m pytest -q proxy_offline
+uv run --with UnityPy --with protobuf --with pytest --with capstone --with pyelftools --with cryptography python -m pytest -q proxy_offline
 ```

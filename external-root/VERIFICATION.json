@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0-external-candidate",
+  "date": "2026-11-02",
+  "device_tested": false,
+  "apple_role_login_verified": false,
+  "match_verified": false,
+  "android_root_runtime_verified": false,
+  "process_injection_libraries": 0,
+  "lsposed_required": false,
+  "android_vpn_api_required": false,
+  "validated_client": "official Android ARM64 1.0.77, exact libil2cpp SHA256 gate",
+  "target_version_declaration": "1.0.79",
+  "host_checks": {
+    "go_native_tests_passed": 14,
+    "go_vet": "passed",
+    "python_reference_tests_passed": 23,
+    "uid_route_mock": "passed",
+    "namespace_and_propagation_rejection_mock": "passed",
+    "controller_failure_cleanup_mock": "passed",
+    "migration_mock": "passed",
+    "webui_last_line_bridge_switch_copy_export_mock": "passed",
+    "android_arm64_cgo_pie_build": "passed",
+    "elf_load_alignment_minimum_bytes": 16384,
+    "zip_integrity_and_payload_allowlist": "passed"
+  },
+  "unverified": [
+    "Real device mount namespace, SELinux and NAT behavior",
+    "Game TLS trust and possible certificate or public key pinning",
+    "Real signing header names and candidate signing formula",
+    "Additional wire transformations after the statically located SP framing",
+    "Server acceptance of cross-platform login and version declarations",
+    "Real device reboot persistence and automatic cleanup"
+  ],
+  "artifact": {
+    "filename": "Minifire-External-Root-1.0.0-candidate.zip",
+    "sha256": "79e95d807acaa52335ebf3f7d513114e8e6ae2f1d2e5a6ba67f159d8f0371c39",
+    "bytes": 3071387
+  }
+}
