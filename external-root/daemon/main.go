@@ -23,6 +23,19 @@ import (
 )
 
 func run() error {
+	if len(os.Args) > 1 && os.Args[1] == "namespace-private" {
+		flags := flag.NewFlagSet("namespace-private", flag.ContinueOnError)
+		expected := flags.String("expected-namespace", "", "expected game mount namespace")
+		controller := flags.String("controller-namespace", "", "original controller mount namespace")
+		if err := flags.Parse(os.Args[2:]); err != nil {
+			return err
+		}
+		if err := privatizeNamespace(*expected, *controller, os.Readlink, mountNamespacePrivate); err != nil {
+			return err
+		}
+		fmt.Println("namespace_private_syscall_ok")
+		return nil
+	}
 	if len(os.Args) > 1 && (os.Args[1] == "apps" || os.Args[1] == "target") {
 		flags := flag.NewFlagSet(os.Args[1], flag.ContinueOnError)
 		list := flags.String("packages-list", "/data/system/packages.list", "root package registry")

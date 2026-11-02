@@ -69,7 +69,10 @@ case "$1" in
         unmount_trust || fail previous_certificate_unmount_failed
         # A distinct namespace may still contain shared mounts. Stop propagation
         # inside the game namespace before adding any certificate bind mount.
-        "$NSENTER" -t "$2" -m -- mount --make-rprivate / 2> "$STATE/trust-error.txt" || fail target_mount_propagation_failed
+        controller_namespace=$(readlink "$PROC/$$/ns/mnt")
+        [ -n "$controller_namespace" ] || fail controller_namespace_missing
+        helper="$PROC/$$/root$MODDIR/bin/minifire-external"
+        "$NSENTER" -t "$2" -m -- "$helper" namespace-private --expected-namespace "$namespace" --controller-namespace "$controller_namespace" 2> "$STATE/trust-error.txt" || fail target_mount_propagation_failed
         printf '%s\n' "$2" > "$STATE/mount_pid"
         printf '%s\n' "$namespace" > "$STATE/mount_ns"
         printf '%s\n' "$GAME" > "$STATE/mount_package"

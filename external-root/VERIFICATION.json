@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2-external-candidate",
+  "version": "1.0.3-external-candidate",
   "date": "2026-11-02",
   "device_tested": false,
   "apple_role_login_verified": false,
@@ -11,7 +11,7 @@
   "validated_client": "official Android ARM64 1.0.77, exact libil2cpp SHA256 gate",
   "target_version_declaration": "1.0.79",
   "host_checks": {
-    "go_native_tests_passed": 25,
+    "go_native_tests_passed": 28,
     "go_vet": "passed",
     "python_reference_tests_passed": 23,
     "uid_route_mock": "passed",
@@ -34,7 +34,11 @@
     "selected_package_lookup_uid_validation_and_ambiguity": "passed",
     "target_selection_save_cleanup_and_unsafe_name_rejection": "passed",
     "selected_package_mount_process_identity": "passed",
-    "webui_app_list_filter_save_target": "passed"
+    "webui_app_list_filter_save_target": "passed",
+    "namespace_identity_guard": "passed, shared/init/controller/wrong/unreadable namespace rejected",
+    "namespace_private_helper_dispatch": "passed, no mount --make-rprivate command",
+    "kernel_errno_retained": "passed",
+    "python_reference_tests_note": "23 reference tests passed in 1.0.2; reference implementation unchanged in 1.0.3"
   },
   "unverified": [
     "Real device mount namespace, SELinux and NAT behavior",
@@ -45,14 +49,16 @@
     "Real device reboot persistence and automatic cleanup"
   ],
   "artifact": {
-    "filename": "Minifire-External-Root-1.0.2-candidate.zip",
-    "sha256": "0ddc440b8d11820ef3b3efb1abdb8ae33a81e8bf0bb4faee4e77111d29d57636",
-    "bytes": 3088556
+    "filename": "Minifire-External-Root-1.0.3-candidate.zip",
+    "sha256": "cd787573729455ca4c536b42315266cb480869c6457de93d6a75cc6940e43909",
+    "bytes": 3090910
   },
   "resource_failure_root_cause_confirmed": false,
   "boxproxy_ebpf_runtime_verified": false,
   "resource_failure_user_report": "User identified incorrect domestic traffic routing in their proxy; not established as a module version rewrite defect.",
   "all_channel_compatibility_verified": false,
   "selectable_target_package": true,
-  "installed_app_discovery": "Root package registry and installed APK directory first; Binder queries only as fallback"
+  "installed_app_discovery": "Root package registry and installed APK directory first; Binder queries only as fallback",
+  "reported_failure": "target_mount_propagation_failed with external mount reporting bad /etc/fstab",
+  "android_namespace_private_syscall_runtime_verified": false
 }
