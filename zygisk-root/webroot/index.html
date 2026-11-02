@@ -16,11 +16,11 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Zygisk · v0.6.1</div><h1>迷枪苹果区兼容</h1>
+  <div class="eyebrow">Zygisk · v0.6.2</div><h1>迷枪苹果区兼容</h1>
   <p>分别控制游戏和 Hunter 的模块加载。开关保存后，完全退出目标应用再打开即可生效。</p>
   <section class="card row"><div><h2>游戏兼容</h2><div class="sub">com.miniworldroyale.sparkgame</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="游戏兼容"><span class="track"></span></label></section>
   <section class="card row"><div><h2>Hunter 检查</h2><div class="sub">com.zhenxi.hunter</div></div><label class="switch"><input id="hunter" type="checkbox" disabled aria-label="Hunter 检查"><span class="track"></span></label></section>
-  <section class="card"><div class="toolbar"><h2>系统日志</h2><div><button id="refresh" type="button">刷新日志</button> <button id="copy" type="button">复制日志</button></div></div><p>显示最近 1500 行原始 logcat（main、system、crash）。系统日志可能含其他应用的隐私信息，分享前请检查。</p><pre id="logs">正在读取…</pre></section>
+  <section class="card"><div class="toolbar"><h2>系统日志</h2><div><button id="refresh" type="button">刷新日志</button> <button id="copy" type="button">复制诊断</button></div></div><p>显示当前 logcat 快照最近最多 1500 行（main、system、crash）。每次刷新时快照会随系统日志变化；分享前请检查其他应用的隐私信息。</p><div id="loginfo" class="sub"></div><div id="copyinfo" class="sub"></div><pre id="logs">正在读取…</pre></section>
   <p id="status" role="status"></p>
 </main><script>
   'use strict';
@@ -28,10 +28,20 @@
   const statusPattern=/^game=([01])\r?\nhunter=([01])\s*$/m;
   let backend=null;
   const game=document.getElementById('game'),hunter=document.getElementById('hunter');
-  const status=document.getElementById('status'),logs=document.getElementById('logs');
+  const status=document.getElementById('status'),logs=document.getElementById('logs'),loginfo=document.getElementById('loginfo'),copyinfo=document.getElementById('copyinfo');
   function bridge(){
     if(!window.ksu||typeof window.ksu.exec!=='function') throw Error('请从支持 WebUI 的 Root 管理器打开此页面');
     return window.ksu;
+  }
+  // KernelSU's synchronous WebView exec can return only the last stdout line.
+  // Encode the complete command output as one line before it crosses the bridge.
+  function shell(command){
+    const encoded=bridge().exec('( '+command+' ) 2>&1 | base64 | tr -d "\\n"; printf "\\n"');
+    if(typeof encoded!=='string') throw Error('Root 管理器没有返回命令结果');
+    if(!encoded.trim()) return '';
+    const binary=atob(encoded.trim());
+    const bytes=Uint8Array.from(binary,character=>character.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
   }
   function findBackend(){
     if(backend) return backend;
@@ -51,21 +61,21 @@
     let detail='';
     for(const dir of new Set(dirs)){
       const candidate='sh '+dir+'/control.sh';
-      const output=ksu.exec(candidate+' status');
+      const output=shell(candidate+' status');
       if(typeof output==='string' && statusPattern.test(output)){
         backend={type:'script',command:candidate};return backend;
       }
       if(typeof output==='string' && output.trim()) detail=output.trim().slice(0,100);
     }
     for(const dir of new Set(dirs)){
-      const output=ksu.exec('cat '+dir+'/game_enabled '+dir+'/hunter_enabled 2>&1');
+      const output=shell('cat '+dir+'/game_enabled '+dir+'/hunter_enabled');
       if(typeof output==='string' && /^[01]\r?\n[01]\s*$/.test(output)){
         backend={type:'direct',dir};return backend;
       }
       if(typeof output==='string' && output.trim()) detail=output.trim().slice(0,100);
     }
     for(const dir of new Set(dirs)){
-      const prop=ksu.exec('cat '+dir+'/module.prop 2>&1');
+      const prop=shell('cat '+dir+'/module.prop');
       if(typeof prop!=='string' || !/^id=minifire_compat_zygisk\s*$/m.test(prop)) continue;
       const code=/^versionCode=(\d+)\s*$/m.exec(prop);
       if(!code || Number(code[1])<501) continue;
@@ -73,18 +83,17 @@
       const initialize="[ -f "+gameFile+" ] || { printf '0\\n' > "+gameFile+" && chmod 0644 "+gameFile+"; }; "+
         "[ -f "+hunterFile+" ] || { printf '0\\n' > "+hunterFile+" && chmod 0644 "+hunterFile+"; }; "+
         'cat '+gameFile+' '+hunterFile+' 2>&1';
-      const output=ksu.exec(initialize);
+      const output=shell(initialize);
       if(typeof output==='string' && /^[01]\r?\n[01]\s*$/.test(output)){
         backend={type:'direct',dir};return backend;
       }
       if(typeof output==='string' && output.trim()) detail=output.trim().slice(0,100);
     }
-    const uid=String(ksu.exec('id -u 2>&1')||'无输出').trim().slice(0,30);
+    const uid=String(shell('id -u')||'无输出').trim().slice(0,30);
     throw Error('配置读取失败：UID='+uid+'；目录='+reported+'；返回='+detail);
   }
   function run(argument){
-    const ksu=bridge();
-    if(argument==='logs') return ksu.exec('logcat -d -b main -b system -b crash -v threadtime -t 1500 2>&1');
+    if(argument==='logs') return shell('logcat -d -b main -b system -b crash -v threadtime -t 1500');
     const active=findBackend();
     let command;
     if(active.type==='script') command=active.command+' '+argument;
@@ -95,8 +104,7 @@
       const path=active.dir+'/'+match[1]+'_enabled';
       command="printf '%s\\n' '"+match[2]+"' > "+path+'.tmp && chmod 0644 '+path+'.tmp && mv -f '+path+'.tmp '+path+' && cat '+path+' 2>&1';
     }
-    const output=ksu.exec(command);
-    if(typeof output!=='string') throw Error('Root 管理器没有返回命令结果');
+    const output=shell(command);
     if(active.type==='direct' && argument==='status'){
       const match=/^([01])\r?\n([01])\s*$/.exec(output);
       if(match) return 'game='+match[1]+'\nhunter='+match[2]+'\n';
@@ -122,12 +130,17 @@
     }catch(error){readStatus('保存失败：'+error);}
   }
   game.addEventListener('change',()=>update(game));hunter.addEventListener('change',()=>update(hunter));
-  function refresh(){try{logs.textContent=run('logs').trim()||'暂无模块日志。启动目标应用后再刷新。';}catch(error){logs.textContent='读取日志失败：'+error;}}
+  function refresh(){try{
+    const value=run('logs').trim();
+    logs.textContent=value||'暂无系统日志。';
+    const count=value?value.split('\n').length:0;
+    loginfo.textContent='本次快照：'+count+' 行（上限 1500 行）';
+  }catch(error){logs.textContent='读取日志失败：'+error;loginfo.textContent='日志读取失败';}}
   document.getElementById('refresh').addEventListener('click',refresh);
   document.getElementById('copy').addEventListener('click',()=>{
-    const value=logs.textContent;
+    const value='模块：'+moduleId+'\n开关状态：'+status.textContent+'\n'+loginfo.textContent+'\n\n'+logs.textContent;
     if(typeof navigator!=='undefined' && navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(value).then(()=>show('日志已复制'),error=>show('复制失败：'+error));
+      navigator.clipboard.writeText(value).then(()=>copyinfo.textContent='诊断已复制',error=>copyinfo.textContent='复制失败：'+error);
       return;
     }
     try{
@@ -135,8 +148,8 @@
       field.value=value;field.style.position='fixed';field.style.opacity='0';
       document.body.appendChild(field);field.select();
       const copied=document.execCommand('copy');field.remove();
-      show(copied?'日志已复制':'复制失败：请长按日志框选择文本');
-    }catch(error){show('复制失败：'+error);}
+      copyinfo.textContent=copied?'诊断已复制':'复制失败：请长按日志框选择文本';
+    }catch(error){copyinfo.textContent='复制失败：'+error;}
   });
   readStatus();refresh();
 </script></body></html>
