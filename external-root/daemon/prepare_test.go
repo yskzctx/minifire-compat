@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,6 +11,38 @@ import (
 	"path/filepath"
 	"testing"
 )
+
+func TestAPKPreparationReportsBoundedNonSensitivePhases(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fixture.apk")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	z := zip.NewWriter(f)
+	for _, name := range []string{"lib/arm64-v8a/libil2cpp.so", "assets/bin/Data/Managed/Metadata/global-metadata.dat"} {
+		entry, err := z.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry.Write([]byte("invalid client fixture"))
+	}
+	z.Close()
+	f.Close()
+	var phases []string
+	_, err = materialFromAPK(path, func(stage string) error { phases = append(phases, stage); return nil })
+	if err == nil || err.Error() != "client_binary_unrecognized" {
+		t.Fatalf("unknown client result: %v", err)
+	}
+	want := []string{"reading_apk_binary", "reading_apk_metadata", "verifying_client_binary"}
+	if len(phases) != len(want) {
+		t.Fatalf("missing preparation progress: %v", phases)
+	}
+	for i := range want {
+		if phases[i] != want[i] {
+			t.Fatal(phases)
+		}
+	}
+}
 
 func TestKnownClientMaterialExtractionDoesNotRequireProcessAccess(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "work", "apk-files")
@@ -67,5 +100,18 @@ func TestGeneratedTLSIdentityVerifiesAndSurvivesRepeatedPrepare(t *testing.T) {
 	block, _ := pem.Decode(ca)
 	if block == nil {
 		t.Fatal("CA missing")
+	}
+}
+
+func TestInterruptedInitialIdentityCanBePreparedAgain(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "ca.key"), []byte("incomplete first preparation"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareIdentity(dir); err != nil {
+		t.Fatalf("cannot recover interrupted first preparation: %v", err)
+	}
+	if _, err := tls.LoadX509KeyPair(filepath.Join(dir, "server.pem"), filepath.Join(dir, "server.key")); err != nil {
+		t.Fatal(err)
 	}
 }

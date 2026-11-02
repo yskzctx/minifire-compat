@@ -77,7 +77,13 @@ func clientMaterial(binaryData, metadata []byte) ([]byte, error) {
 	return material, nil
 }
 
-func materialFromAPK(path string) ([]byte, error) {
+func materialFromAPK(path string, progress ...func(string) error) ([]byte, error) {
+	report := func(stage string) error {
+		if len(progress) > 0 {
+			return progress[0](stage)
+		}
+		return nil
+	}
 	archive, err := zip.OpenReader(path)
 	if err != nil {
 		return nil, errors.New("apk_open_failed")
@@ -99,12 +105,21 @@ func materialFromAPK(path string) ([]byte, error) {
 		}
 		return nil, errors.New("apk_entry_missing")
 	}
+	if err = report("reading_apk_binary"); err != nil {
+		return nil, err
+	}
 	b, err := read("lib/arm64-v8a/libil2cpp.so", 180*1024*1024)
 	if err != nil {
 		return nil, err
 	}
+	if err = report("reading_apk_metadata"); err != nil {
+		return nil, err
+	}
 	m, err := read("assets/bin/Data/Managed/Metadata/global-metadata.dat", 32*1024*1024)
 	if err != nil {
+		return nil, err
+	}
+	if err = report("verifying_client_binary"); err != nil {
 		return nil, err
 	}
 	return clientMaterial(b, m)
@@ -177,7 +192,10 @@ func prepareIdentity(dir string) error {
 		if !ok || !key.PublicKey.Equal(ca.PublicKey) {
 			return errors.New("ca_key_mismatch")
 		}
-	} else if errors.Is(certErr, os.ErrNotExist) && errors.Is(keyErr, os.ErrNotExist) {
+	} else if (certErr == nil || errors.Is(certErr, os.ErrNotExist)) &&
+		(keyErr == nil || errors.Is(keyErr, os.ErrNotExist)) {
+		// A cancelled initial prepare can leave only one half of an unused
+		// identity. Rebuild that incomplete pair; preserve complete valid pairs.
 		var err error
 		key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {

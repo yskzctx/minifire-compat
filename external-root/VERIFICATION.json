@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0-external-candidate",
+  "version": "1.0.1-external-candidate",
   "date": "2026-11-02",
   "device_tested": false,
   "apple_role_login_verified": false,
@@ -11,7 +11,7 @@
   "validated_client": "official Android ARM64 1.0.77, exact libil2cpp SHA256 gate",
   "target_version_declaration": "1.0.79",
   "host_checks": {
-    "go_native_tests_passed": 14,
+    "go_native_tests_passed": 19,
     "go_vet": "passed",
     "python_reference_tests_passed": 23,
     "uid_route_mock": "passed",
@@ -21,7 +21,14 @@
     "webui_last_line_bridge_switch_copy_export_mock": "passed",
     "android_arm64_cgo_pie_build": "passed",
     "elf_load_alignment_minimum_bytes": 16384,
-    "zip_integrity_and_payload_allowlist": "passed"
+    "zip_integrity_and_payload_allowlist": "passed",
+    "android_version_resource_bidirectional_passthrough": "passed, plain and gzip",
+    "apex_only_upstream_trust_store": "passed",
+    "controller_cancel_timeout_explicit_stop": "passed",
+    "route_cleanup_error_preserves_recovery_uid": "passed",
+    "unmount_error_preserves_recovery_records": "passed",
+    "interrupted_initial_ca_recovery": "passed",
+    "loopback_exclusion_v4_v6": "passed"
   },
   "unverified": [
     "Real device mount namespace, SELinux and NAT behavior",
@@ -32,8 +39,11 @@
     "Real device reboot persistence and automatic cleanup"
   ],
   "artifact": {
-    "filename": "Minifire-External-Root-1.0.0-candidate.zip",
-    "sha256": "79e95d807acaa52335ebf3f7d513114e8e6ae2f1d2e5a6ba67f159d8f0371c39",
-    "bytes": 3071387
-  }
+    "filename": "Minifire-External-Root-1.0.1-candidate.zip",
+    "sha256": "357aea0734e15457c095a48fa4edbfb47b7ab77581acc05ed868e5cd9c60f916",
+    "bytes": 3075962
+  },
+  "resource_failure_root_cause_confirmed": false,
+  "boxproxy_ebpf_runtime_verified": false,
+  "resource_failure_user_report": "User identified incorrect domestic traffic routing in their proxy; not established as a module version rewrite defect."
 }

@@ -32,11 +32,27 @@ func run() error {
 		if *apk == "" || *state == "" {
 			return fmt.Errorf("prepare_configuration_missing")
 		}
-		material, err := materialFromAPK(*apk)
+		if err := os.MkdirAll(*state, 0700); err != nil {
+			return fmt.Errorf("prepare_state_unavailable")
+		}
+		if err := os.Chmod(*state, 0700); err != nil {
+			return fmt.Errorf("prepare_state_permissions_failed")
+		}
+		progress := func(stage string) error {
+			fmt.Println(stage)
+			return writePrivate(*state, "prepare-progress", []byte(stage+"\n"))
+		}
+		material, err := materialFromAPK(*apk, progress)
 		if err != nil {
 			return err
 		}
+		if err = progress("preparing_local_certificate"); err != nil {
+			return err
+		}
 		if err = prepareIdentity(*state); err != nil {
+			return err
+		}
+		if err = progress("saving_local_material"); err != nil {
 			return err
 		}
 		if err = writePrivate(*state, "material", material); err != nil {

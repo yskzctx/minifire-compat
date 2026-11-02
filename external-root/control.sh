@@ -12,12 +12,14 @@ case "$1" in
         if [ "$2" = 1 ]; then
             mkdir -p "$STATE" && chmod 0700 "$STATE" || exit 1
             sh "$MODDIR/controller.sh" </dev/null > "$STATE/controller-error.txt" 2>&1 &
+        else
+            sh "$MODDIR/controller.sh" stop || exit 1
         fi
         cat "$MODDIR/game_enabled"
         ;;
     logs)
         printf '[module status]\n'; sh "$MODDIR/control.sh" status
-        for file in controller-error.txt prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt; do
+        for file in controller-error.txt cleanup.txt package-path.txt package-uid.txt prepare-progress prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt; do
             if [ -s "$STATE/$file" ]; then printf '\n[%s]\n' "$file"; tail -n 20 "$STATE/$file"; fi
         done
         for file in controller.jsonl events.jsonl; do
@@ -32,7 +34,7 @@ case "$1" in
             printf '\n[module]\n'; cat "$MODDIR/module.prop"
             printf '\n[status]\n'; sh "$MODDIR/control.sh" status
             printf '\n[game package]\n'; dumpsys package com.miniworldroyale.sparkgame | sed -n '/versionName=/p'
-            for file in controller-error.txt prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt controller.jsonl.1 controller.jsonl events.jsonl.1 events.jsonl; do
+            for file in controller-error.txt cleanup.txt package-path.txt package-uid.txt prepare-progress prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt controller.jsonl.1 controller.jsonl events.jsonl.1 events.jsonl; do
                 if [ -f "$STATE/$file" ]; then printf '\n[%s]\n' "$file"; cat "$STATE/$file"; fi
             done
         } > "$OUT" 2>&1

@@ -2,7 +2,7 @@
 set -eu
 fixture=$(mktemp -d)
 case "$fixture" in */tmp.*) ;; *) exit 1;; esac
-cleanup(){ rm -f "$fixture/trust.sh" "$fixture/nsenter" "$fixture/readlink" "$fixture/calls" "$fixture/proc/1/ns/mnt" "$fixture/proc/123/ns/mnt" "$fixture/proc/123/cmdline" "$fixture/state/trust_ready" "$fixture/state/trust-error.txt"; rmdir "$fixture/state" "$fixture/proc/1/ns" "$fixture/proc/1" "$fixture/proc/123/ns" "$fixture/proc/123" "$fixture/proc" "$fixture" 2>/dev/null || :; }
+cleanup(){ rm -f "$fixture/trust.sh" "$fixture/nsenter" "$fixture/readlink" "$fixture/calls" "$fixture/proc/1/ns/mnt" "$fixture/proc/123/ns/mnt" "$fixture/proc/123/cmdline" "$fixture/proc/123/mountinfo" "$fixture/state/trust_ready" "$fixture/state/trust-error.txt" "$fixture/state/mount_pid" "$fixture/state/mount_ns" "$fixture/state/mount_targets"; rmdir "$fixture/state" "$fixture/proc/1/ns" "$fixture/proc/1" "$fixture/proc/123/ns" "$fixture/proc/123" "$fixture/proc" "$fixture" 2>/dev/null || :; }
 trap cleanup EXIT
 cp external-root/trust.sh "$fixture/trust.sh"
 mkdir -p "$fixture/proc/1/ns" "$fixture/proc/123/ns"
@@ -35,3 +35,11 @@ if output=$(sh "$fixture/trust.sh" mount 123); then exit 1; fi
 grep -q -- 'mount --make-rprivate /' "$CALLS"
 if grep -q -- 'mount --bind' "$CALLS"; then exit 1; fi
 echo 'mount propagation must be private before binding certificates'
+printf '123\n' > "$fixture/state/mount_pid"
+printf 'mnt:[200]\n' > "$fixture/state/mount_ns"
+printf '/system/etc/security/cacerts\n' > "$fixture/state/mount_targets"
+printf '1 2 0:1 /adb/modules/minifire_compat_zygisk/state/trust /system/etc/security/cacerts rw - ext4 /dev/test rw\n' > "$fixture/proc/123/mountinfo"
+if sh "$fixture/trust.sh" unmount; then echo 'failed unmount was reported as success' >&2; exit 1; fi
+[ -f "$fixture/state/mount_pid" ]
+[ -f "$fixture/state/mount_targets" ]
+echo 'failed unmount reports failure and keeps recovery records'

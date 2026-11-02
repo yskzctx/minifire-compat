@@ -4,6 +4,10 @@
 
 **验证范围：电脑上的真实本地 TLS/TCP 连接、协议改写与签名核对、安卓交叉构建，以及 Root 脚本的模拟测试。尚未在用户手机上确认跨区登录或对局。** 这是首个具备实际网络转发和 Root 控制流程的进程外试装包，不能把主机结果当作服务器已接受或真机已通过。
 
+1.0.1：关闭开关主动取消准备任务并清理；安装查询、材料准备、证书准备与挂载均有时限；材料准备显示分阶段进度；路由或证书清理失败不再伪报成功并保留恢复记录；取消首次证书生成后可重新准备。上游 TLS 显式读取 Android 原始 APEX 与旧系统证书目录，仍核验服务器证书。增加启动版本接口普通/gzip 双向原样保留测试。用户已反馈此前资源报错来自代理分流，本版没有将其记作版本号修复。
+
+版本边界：`/api/user/login` 与大厅登录声明使用苹果版本；`/api/comm/version/new` 的安卓请求和安卓响应保持原字节，包括资源版本、渠道、URL、哈希和更新要求。`md.ApiLoginResponse` 没有版本字段；启动 `md.ApiVersionResponse` 含资源配置，不能把苹果资源配置中的版本文字替换成安卓版本后就认为可用。本版不进行无协议依据的全局版本替换。
+
 ## 运行方式
 
 1. Root 管理器覆盖安装本 ZIP 并重启。模块 ID 沿用 `minifire_compat_zygisk`，安装脚本删除先前版本的 Zygisk 注入库。首次迁移到此实现默认关闭。
@@ -26,6 +30,20 @@
 关键记录直接保存在 Root 模块私有 `state/` 目录，包含准备、命名空间、路由、TLS 选择、签名改写、中控业务结果与大厅登录改写。原始错误按允许的文件名单导出；不会遍历 state 目录或导出私钥/材料。
 
 事件包括 `login_tls_selected`、`signature_verified`、`request_rewritten`、`signature_headers_unrecognized`、`signature_unverified`、`login_profile_unchanged_or_unsupported`、`terminal_business_response`、`lobby_endpoint_ready`、`lobby_login_rewritten`、`client_certificate_rejected`、`upstream_failed_certificate`、`original_destination_unavailable`。不记录手机号、验证码、账号令牌、完整签名或请求正文。
+
+关闭后的 `cleanup_failed` 表示关闭标志已保存，但不能确认清理完成；请检查导出的 `cleanup.txt`，不要把这个状态当作已恢复。准备阶段的固定事件分别表示查找安装位置、读取原生库、读取元数据、核对指纹、准备证书和保存材料。材料准备默认 90 秒超时，安装查询各 15 秒、证书目录准备 30 秒、游戏命名空间挂载 15 秒。日志导出包含这些阶段及原始工具错误，保留此前事件。
+
+## BoxProxy eBPF 共存
+
+eBPF 模式仍可能抢先处理游戏连接，或处理本模块以 Root UID 0 发出的上游连接。代理核心中的 `DIRECT` 出站规则和 eBPF 捕获入口的 UID 排除不是同一个步骤。
+
+- 建议通过 BoxProxy 当前版本的应用/UID 捕获设置，排除游戏 `com.miniworldroyale.sparkgame`，让本模块取得原始连接。黑白名单语义及自动生成配置应按所用版本核对，不直接套用 TUN 配置字段。
+- 本模块的转发进程是 UID 0；只排除管理界面应用包名无法排除这个进程。上游即使经过 BoxProxy，也必须能正确连接真实目的地；不要因修复本模块而批量改写所有 Root 程序的代理设置。
+- 游戏相关域名应使用可达的真实 DNS 地址。若本模块拿到 Fake-IP，脱离其映射代理后可能无法连接。具体 DNS 排除规则取决于当前内核与 BoxProxy 版本。
+- 本模块已在自己的 NAT 链中排除 IPv4 回环地址和 IPv6 `::1`，只创建/清理 `MFC_OUT`、`MFC_TCP` 及对应游戏 UID 的跳转；不修改 BoxProxy 配置、BPF 程序、映射或其他链。
+- 这不等同于已经通过 BoxProxy 实机共存验证。可先让游戏及这条上游链路完全绕过代理，确认兼容功能，再逐项恢复需要的分流。
+
+依据：BoxProxy 当前上游 [eBPF 入口与 UID 设置](https://github.com/boxproxy/boxproxy/blob/main/boxctl/src/core_config/sing_box.rs)、[黑白名单映射](https://github.com/boxproxy/boxproxy/blob/main/boxctl/src/core_config/common.rs)。当前源码与旧版的内核/配置能力存在差异，不能据此认定用户手机正在运行相同版本。
 
 ## 构建
 

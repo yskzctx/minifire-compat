@@ -12,15 +12,17 @@ unmount_trust(){
     [ -f "$STATE/mount_pid" ] && [ -f "$STATE/mount_ns" ] && [ -f "$STATE/mount_targets" ] || return 0
     IFS= read -r target_pid < "$STATE/mount_pid"
     IFS= read -r expected_ns < "$STATE/mount_ns"
+    unmount_failed=0
     if valid_pid "$target_pid" && game_process "$target_pid" && [ "$(readlink "$PROC/$target_pid/ns/mnt")" = "$expected_ns" ]; then
         while IFS= read -r target; do
             case "$target" in /apex/com.android.conscrypt/cacerts|/system/etc/security/cacerts)
                 if awk -v target="$target" '$5==target && $4 ~ /minifire_compat_zygisk\/state\/trust/ {found=1} END {exit !found}' "$PROC/$target_pid/mountinfo"; then
-                    "$NSENTER" -t "$target_pid" -m -- umount "$target" 2>/dev/null || :
+                    "$NSENTER" -t "$target_pid" -m -- umount "$target" || unmount_failed=1
                 fi;;
             esac
         done < "$STATE/mount_targets"
     fi
+    [ "$unmount_failed" = 0 ] || { printf 'certificate_unmount_failed\n'; return 1; }
     rm -f "$STATE/mount_pid" "$STATE/mount_ns" "$STATE/mount_targets"
 }
 case "$1" in
@@ -59,7 +61,7 @@ case "$1" in
             [ -z "$shared" ] || [ "$shared" != "$namespace" ] || fail shared_mount_namespace
         done
         [ -f "$STATE/trust_ready" ] || fail trust_not_prepared
-        unmount_trust
+        unmount_trust || fail previous_certificate_unmount_failed
         # A distinct namespace may still contain shared mounts. Stop propagation
         # inside the game namespace before adding any certificate bind mount.
         "$NSENTER" -t "$2" -m -- mount --make-rprivate / 2> "$STATE/trust-error.txt" || fail target_mount_propagation_failed
@@ -79,6 +81,6 @@ case "$1" in
         [ "$mounted" -gt 0 ] || fail target_trust_store_missing
         printf 'mounted\n'
         ;;
-    unmount) unmount_trust; printf 'unmounted\n';;
+    unmount) unmount_trust || exit 1; printf 'unmounted\n';;
     *) exit 2;;
 esac

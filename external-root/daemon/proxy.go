@@ -14,6 +14,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -77,10 +78,19 @@ func newProxy(target *url.URL, material []byte, version string, transport http.R
 	}
 	material = append([]byte(nil), material...)
 	if transport == nil {
-		t := http.DefaultTransport.(*http.Transport).Clone()
-		t.Proxy = nil
-		t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
-		transport = t
+		if runtime.GOOS == "android" {
+			t, err := upstreamTransport([]string{"/apex/com.android.conscrypt/cacerts", "/system/etc/security/cacerts"})
+			if err != nil {
+				return nil, err
+			}
+			transport = t
+			journal.emit("service", "upstream_android_roots_loaded", 0, 0, 0)
+		} else {
+			t := http.DefaultTransport.(*http.Transport).Clone()
+			t.Proxy = nil
+			t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+			transport = t
+		}
 	}
 	if t, ok := transport.(*http.Transport); ok && t.TLSClientConfig != nil && t.TLSClientConfig.InsecureSkipVerify {
 		return nil, errors.New("upstream certificate verification required")
@@ -96,7 +106,11 @@ func newProxy(target *url.URL, material []byte, version string, transport http.R
 		r.Out.Host = target.Host
 		r.Out.URL.RawQuery = r.In.URL.RawQuery
 		if r.In.Method != "POST" || r.In.URL.Path != "/api/user/login" {
-			journal.emit(id, "request_passthrough", 0, 0, 0)
+			stage := "request_passthrough"
+			if r.In.URL.Path == "/api/comm/version/new" {
+				stage = "android_version_request_passthrough"
+			}
+			journal.emit(id, stage, 0, 0, 0)
 			return
 		}
 		if len(onLobby) > 0 {
@@ -152,6 +166,11 @@ func newProxy(target *url.URL, material []byte, version string, transport http.R
 	proxy.ModifyResponse = func(r *http.Response) error {
 		id := r.Request.Context().Value(key{}).(string)
 		journal.emit(id, "upstream_response", r.StatusCode, 0, 0)
+		if r.Request.URL.Path == "/api/comm/version/new" {
+			// Preserve Android manifest versions, update requirements, download
+			// URLs, hashes, compression and headers exactly as returned.
+			journal.emit(id, "version_response_passthrough", r.StatusCode, 0, 0)
+		}
 		if len(onLobby) > 0 && r.StatusCode == 200 && r.Request.URL.Path == "/api/user/login" && r.Request.Context().Value(rewriteKey{}).(*rewriteState).applied {
 			original := r.Body
 			body, err := io.ReadAll(io.LimitReader(original, maxBody+1))
