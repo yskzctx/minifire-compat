@@ -23,7 +23,7 @@ case "$1" in
         printf '\n'
         ;;
     logs)
-        logcat -d -b main -b system -b crash -v threadtime -t 1500 2>&1
+        logcat -d -b main -b system -b crash -v threadtime | tail -n 1500
         ;;
     *) exit 2;;
 esac

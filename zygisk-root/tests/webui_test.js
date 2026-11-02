@@ -15,7 +15,7 @@ function bridgeAdapter(context){
   };
   return context;
 }
-const elements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy'].map(id=>[id,{
+const elements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy','export','exportinfo'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -25,6 +25,7 @@ let copied='';
 const context={navigator:{clipboard:{writeText(value){copied=value;return Promise.resolve();}}},document:{getElementById:id=>elements[id]},window:{ksu:{exec(command){
   calls.push(command);
   if(command.includes('logcat'))return 'native_stage=3\n';
+  if(command.includes('/diagnostics.sh'))return '/sdcard/Download/MinifireCompat-20261102-100000.txt\n';
   assert(command.startsWith('sh /data/adb/modules/minifire_compat_zygisk/control.sh '));
   const args=command.split(' ').slice(-2);
   if(args[1]==='status')return `game=${flags.game}\nhunter=${flags.hunter}\n`;
@@ -37,13 +38,16 @@ assert.equal(elements.game.checked,true);
 assert.equal(elements.hunter.checked,false);
 assert.equal(elements.game.disabled,false);
 assert.equal(elements.logs.textContent,'native_stage=3');
-assert(calls.some(command=>command.includes('logcat -d -b main -b system -b crash -v threadtime -t 1500')),
-  'UI must display recent unfiltered system logs');
+assert(calls.some(command=>command.includes('logcat -d -b main -b system -b crash -v threadtime | tail -n 1500')),
+  'UI must cap the combined system log buffers at 1500 lines');
 assert(calls.every(command=>!command.includes('MinifireCompatZ:V')),
   'UI log retrieval must not filter to module tag');
 elements.copy.handlers.click();
 assert.match(copied,/开关已读取/,'copy button must include configuration status');
 assert(copied.endsWith(elements.logs.textContent),'copy button must include the full displayed log');
+elements.export.handlers.click();
+assert.match(elements.exportinfo.textContent,/\/sdcard\/Download\/MinifireCompat-20261102-100000.txt/);
+assert(calls.some(command=>command.includes('/diagnostics.sh')));
 elements.hunter.checked=true;
 elements.hunter.handlers.change();
 assert.equal(flags.hunter,'1');
@@ -55,7 +59,7 @@ assert.equal(flags.game,'0');
 assert(calls.every(x=>!x.includes('com.bank')));
 console.log('webui switches and log display ok');
 
-const pendingElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy'].map(id=>[id,{
+const pendingElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy','export','exportinfo'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -81,7 +85,7 @@ console.log('pending-update module path ok');
 
 // The manager can serve webroot while control.sh is absent from its module path.
 // The UI must still read the packaged flags and fetch logs independently.
-const directElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy'].map(id=>[id,{
+const directElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy','export','exportinfo'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -111,7 +115,7 @@ directElements.hunter.handlers.change();
 assert.equal(directFlags.hunter,'1');
 console.log('direct-config fallback and independent logs ok');
 
-const missingElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy'].map(id=>[id,{
+const missingElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy','export','exportinfo'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -135,7 +139,7 @@ assert.match(missingCopied,/loader_hooks=0/);
 assert.match(missingElements.status.textContent,/UID=0/,'copy feedback must not erase config failure');
 console.log('missing-config diagnostics ok');
 
-const repairElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy'].map(id=>[id,{
+const repairElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy','export','exportinfo'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -166,7 +170,7 @@ console.log('missing flag repair preserves existing setting ok');
 // KernelSU's synchronous WebView bridge uses ShellUtils.fastCmd, which returns
 // only the last output line. Reproduce the real bridge instead of returning
 // multiline strings as the older mocks above did.
-const bridgeElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy'].map(id=>[id,{
+const bridgeElements=Object.fromEntries(['game','hunter','logs','status','loginfo','copyinfo','refresh','copy','export','exportinfo'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));

@@ -16,11 +16,11 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Zygisk · v0.6.2</div><h1>迷枪苹果区兼容</h1>
+  <div class="eyebrow">Zygisk · v0.6.3</div><h1>迷枪苹果区兼容</h1>
   <p>分别控制游戏和 Hunter 的模块加载。开关保存后，完全退出目标应用再打开即可生效。</p>
   <section class="card row"><div><h2>游戏兼容</h2><div class="sub">com.miniworldroyale.sparkgame</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="游戏兼容"><span class="track"></span></label></section>
   <section class="card row"><div><h2>Hunter 检查</h2><div class="sub">com.zhenxi.hunter</div></div><label class="switch"><input id="hunter" type="checkbox" disabled aria-label="Hunter 检查"><span class="track"></span></label></section>
-  <section class="card"><div class="toolbar"><h2>系统日志</h2><div><button id="refresh" type="button">刷新日志</button> <button id="copy" type="button">复制诊断</button></div></div><p>显示当前 logcat 快照最近最多 1500 行（main、system、crash）。每次刷新时快照会随系统日志变化；分享前请检查其他应用的隐私信息。</p><div id="loginfo" class="sub"></div><div id="copyinfo" class="sub"></div><pre id="logs">正在读取…</pre></section>
+  <section class="card"><div class="toolbar"><h2>系统日志</h2><div><button id="refresh" type="button">刷新日志</button> <button id="copy" type="button">复制诊断</button> <button id="export" type="button">导出诊断到下载</button></div></div><p>显示当前 logcat 快照最近最多 1500 行（main、system、crash）。每次刷新时快照会随系统日志变化；分享前请检查其他应用的隐私信息。</p><div id="loginfo" class="sub"></div><div id="copyinfo" class="sub"></div><div id="exportinfo" class="sub"></div><pre id="logs">正在读取…</pre></section>
   <p id="status" role="status"></p>
 </main><script>
   'use strict';
@@ -28,7 +28,7 @@
   const statusPattern=/^game=([01])\r?\nhunter=([01])\s*$/m;
   let backend=null;
   const game=document.getElementById('game'),hunter=document.getElementById('hunter');
-  const status=document.getElementById('status'),logs=document.getElementById('logs'),loginfo=document.getElementById('loginfo'),copyinfo=document.getElementById('copyinfo');
+  const status=document.getElementById('status'),logs=document.getElementById('logs'),loginfo=document.getElementById('loginfo'),copyinfo=document.getElementById('copyinfo'),exportinfo=document.getElementById('exportinfo');
   function bridge(){
     if(!window.ksu||typeof window.ksu.exec!=='function') throw Error('请从支持 WebUI 的 Root 管理器打开此页面');
     return window.ksu;
@@ -93,7 +93,7 @@
     throw Error('配置读取失败：UID='+uid+'；目录='+reported+'；返回='+detail);
   }
   function run(argument){
-    if(argument==='logs') return shell('logcat -d -b main -b system -b crash -v threadtime -t 1500');
+    if(argument==='logs') return shell('logcat -d -b main -b system -b crash -v threadtime | tail -n 1500');
     const active=findBackend();
     let command;
     if(active.type==='script') command=active.command+' '+argument;
@@ -137,6 +137,15 @@
     loginfo.textContent='本次快照：'+count+' 行（上限 1500 行）';
   }catch(error){logs.textContent='读取日志失败：'+error;loginfo.textContent='日志读取失败';}}
   document.getElementById('refresh').addEventListener('click',refresh);
+  document.getElementById('export').addEventListener('click',()=>{
+    try{
+      const active=findBackend();
+      const path=active.type==='script' ? active.command.replace(/\/control\.sh$/,'/diagnostics.sh') : 'sh '+active.dir+'/diagnostics.sh';
+      const result=shell(path).trim();
+      if(!/^\/sdcard\/Download\/MinifireCompat-[0-9-]+\.txt$/.test(result)) throw Error(result||'未返回导出文件路径');
+      exportinfo.textContent='已导出：'+result;
+    }catch(error){exportinfo.textContent='导出失败：'+error;}
+  });
   document.getElementById('copy').addEventListener('click',()=>{
     const value='模块：'+moduleId+'\n开关状态：'+status.textContent+'\n'+loginfo.textContent+'\n\n'+logs.textContent;
     if(typeof navigator!=='undefined' && navigator.clipboard && navigator.clipboard.writeText){
