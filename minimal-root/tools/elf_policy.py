@@ -23,13 +23,14 @@ def inspect(source):
         if end<0: raise ValueError('string_unterminated')
         return table[offset:end].decode('ascii')
     names=content(shnames);section_names=[string(names,s[0]) for s in sections]
-    exports=[];dependencies=[];textrel=False;now=False
+    exports=[];imports=[];dependencies=[];textrel=False;now=False
     for i,s in enumerate(sections):
         if s[1]==11:  # SHT_DYNSYM
             symbols=content(i);strings=content(s[6]);step=s[9]
             if step<24 or len(symbols)%step: raise ValueError('dynsym_invalid')
             for at in range(0,len(symbols),step):
                 name,info,visibility,index,_,_=struct.unpack_from('<IBBHQQ',symbols,at)
+                if name and not index: imports.append(string(strings,name))
                 if name and index and info>>4 in (1,2) and visibility&3 in (0,3): exports.append(string(strings,name))
         if s[1]==6:  # SHT_DYNAMIC
             values=content(i);strings=content(s[6])
@@ -38,7 +39,7 @@ def inspect(source):
                 if tag==1: dependencies.append(string(strings,value))
                 if tag==22 or (tag==30 and value&4): textrel=True
                 if tag==24 or (tag==30 and value&8) or (tag==0x6ffffffb and value&1): now=True
-    result=dict(exports=sorted(exports),dependencies=sorted(dependencies),
+    result=dict(exports=sorted(exports),imports=sorted(imports),dependencies=sorted(dependencies),
         writable_executable_load=any(p[0]==1 and p[1]&3==3 for p in programs),
         executable_stack=any(p[0]==0x6474e551 and p[1]&1 for p in programs),
         text_relocations=textrel,full_relro=now and any(p[0]==0x6474e552 for p in programs),
@@ -50,6 +51,27 @@ def inspect(source):
     if set(dependencies)-{'libc.so','libdl.so','liblog.so','libm.so'}: raise ValueError('unexpected_dependency')
     if not result['full_relro'] or result['minimum_load_alignment']<16384 or result['debug_sections']:
         raise ValueError('release_hardening_missing')
+    return result
+
+def inspect_fixed(source):
+    data=bytes(source);result=inspect(data)
+    if b'Dobby' in data: raise ValueError('engine_marker_present')
+    allocators=sorted(set(result['imports'])&{'mmap','mmap64','memfd_create'})
+    if allocators: raise ValueError('executable_allocator_import_present')
+    phoff=struct.unpack_from('<Q',data,32)[0];step,count=struct.unpack_from('<HH',data,54)
+    signature=bytes.fromhex('5f2403d5ff0302d1f85f04a9f65705a9f44f06a9')
+    matches=0
+    for i in range(count):
+        p=struct.unpack_from('<IIQQQQQQ',data,phoff+i*step)
+        if p[0]==1 and p[1]&1:
+            code=data[p[2]:p[2]+p[5]];at=code.find(signature)
+            while at>=0:
+                if at+32<=len(code):
+                    adrp,load,branch=struct.unpack_from('<III',code,at+20)
+                    if adrp&0x9f00001f==0x90000011 and load&0xffc003ff==0xf9400231 and branch==0xd61f0220: matches+=1
+                at=code.find(signature,at+1)
+    if matches!=1: raise ValueError('static_trampoline_missing')
+    result.update(static_trampoline_matches=matches,executable_allocator_imports=allocators,dobby_linked=False)
     return result
 
 if __name__=='__main__': print(json.dumps(inspect(Path(sys.argv[1]).read_bytes()),indent=2))

@@ -26,4 +26,17 @@ class ElfPolicyTests(unittest.TestCase):
                 struct.pack_into('<I',data,at+4,7);break
         else: self.fail('stack header missing from fixture')
         with self.assertRaisesRegex(ValueError,'executable_stack'): policy.inspect(data)
+    def test_fixed_backend_is_file_backed_and_has_no_allocator_import(self):
+        data=(ROOT/'build/libminifire_minimal.release.so').read_bytes()
+        result=policy.inspect_fixed(data)
+        self.assertEqual(result['static_trampoline_matches'],1)
+        self.assertEqual(result['executable_allocator_imports'],[])
+    def test_fixed_backend_rejects_engine_marker(self):
+        data=(ROOT/'build/libminifire_minimal.release.so').read_bytes()+b'Dobby'
+        with self.assertRaisesRegex(ValueError,'engine_marker_present'): policy.inspect_fixed(data)
+    def test_fixed_backend_rejects_changed_trampoline(self):
+        data=bytearray((ROOT/'build/libminifire_minimal.release.so').read_bytes())
+        signature=bytes.fromhex('5f2403d5ff0302d1f85f04a9f65705a9f44f06a9')
+        at=data.find(signature);self.assertGreaterEqual(at,0);data[at+8]^=1
+        with self.assertRaisesRegex(ValueError,'static_trampoline_missing'): policy.inspect_fixed(data)
 if __name__=='__main__': unittest.main(verbosity=2)

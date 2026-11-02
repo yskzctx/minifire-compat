@@ -13,3 +13,5 @@
 [纯 Java 可选研究](docs/JAVA-OPTIONAL-RESEARCH.md)与已成功方案分开。当前定位到 SDK→Unity 的 Java 桥接，但尚无它能控制两段游戏登录字段的完整证明，不把纯 Java 或较少 Hook 等同于更低检测概率。
 
 [18 项 Native 暴露面审查与最小修订](docs/NATIVE-EXPOSURE-REVIEW.md)：2.0.2 仅为审计诊断候选，2.0.1 成功安装包保持原样。不承诺更低检测率。
+
+[2.1.0 固定 ELF 跳板候选](docs/FIXED-TRAMPOLINE-2.1.0.md)：不再链接 Dobby，原函数跳板放在模块已有 RX 段；仍需修改目标入口且有短暂 RWX 窗口。候选未做手机验收，不替代 2.0.1 成功原包。

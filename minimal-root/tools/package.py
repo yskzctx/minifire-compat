@@ -1,9 +1,9 @@
 from pathlib import Path
 import hashlib, struct, sys, zipfile
-from elf_policy import inspect
+from elf_policy import inspect_fixed
 root=Path(__file__).resolve().parents[1]
 binary=root/'build/libminifire_minimal.release.so'; data=binary.read_bytes()
-inspect(data)
+inspect_fixed(data)
 assert data[:5]==b'\x7fELF\x02' and struct.unpack_from('<H',data,18)[0]==183
 offset=struct.unpack_from('<Q',data,32)[0]; size,count=struct.unpack_from('<HH',data,54)
 for index in range(count):

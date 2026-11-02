@@ -1,10 +1,10 @@
 #include <sys/types.h>
 #include "../vendor/zygisk.hpp"
-#include "../vendor/dobby.h"
 #include "../../app/src/main/cpp/login_filter.hpp"
 #include "../../app/src/main/cpp/binary_guard.hpp"
 #include "policy.hpp"
 #include "mapping_permissions.hpp"
+#include "fixed_patch.hpp"
 #include "generated/profile.hpp"
 #include <android/log.h>
 #include <atomic>
@@ -16,17 +16,23 @@
 #include <pthread.h>
 #include <sched.h>
 #include <sys/socket.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
+extern "C" {
+    __attribute__((visibility("hidden"))) std::uintptr_t mf_encode_resume=0;
+    __attribute__((visibility("hidden"))) int mf_encode_original(lua_State*);
+}
 namespace {
 constexpr const char* module_dir="/data/adb/modules/minifire_compat_zygisk";
 bool enabled_snapshot=false;
 LuaApi lua{};
 std::atomic<LuaCFunction> encoder{nullptr};
 std::atomic<bool> installed{false}, encode_seen{false};
+std::atomic<bool> patch_active{false};
 
 void event(const char* stage,const FilterResult* result=nullptr,int error=0,int permissions=-1,long long duration_us=-1) {
     char line[640]; timespec stamp{}; clock_gettime(CLOCK_REALTIME,&stamp);
@@ -42,19 +48,24 @@ long long monotonic_micros() {
     timespec now{};
     return clock_gettime(CLOCK_MONOTONIC,&now)==0?static_cast<long long>(now.tv_sec)*1000000+now.tv_nsec/1000:0;
 }
-void audit_mappings(std::uintptr_t target,std::uintptr_t trampoline) {
+bool read_mapping_modes(std::uintptr_t target,std::uintptr_t trampoline,int& target_mode,int& trampoline_mode) {
     FILE* maps=std::fopen("/proc/self/maps","r");
-    if(!maps) {event("mapping_audit_unavailable",nullptr,errno);return;}
-    char row[1024];int target_mode=-1,trampoline_mode=-1;
+    if(!maps) return false;
+    char row[1024];target_mode=-1;trampoline_mode=-1;
     for(int rows=0;rows<8192 && std::fgets(row,sizeof(row),maps);++rows) {
         if(target_mode<0) target_mode=mapping_permissions(row,target);
         if(trampoline_mode<0) trampoline_mode=mapping_permissions(row,trampoline);
         if(target_mode>=0 && trampoline_mode>=0) break;
     }
     std::fclose(maps);
+    return target_mode>=0 && trampoline_mode>=0;
+}
+void audit_mappings(std::uintptr_t target,std::uintptr_t trampoline) {
+    int target_mode=-1,trampoline_mode=-1;
+    const bool observed=read_mapping_modes(target,trampoline,target_mode,trampoline_mode);
     event("encoder_mapping_permissions",nullptr,0,target_mode);
     event("trampoline_mapping_permissions",nullptr,0,trampoline_mode);
-    if(target_mode<0 || trampoline_mode<0) event("mapping_audit_unavailable");
+    if(!observed) event("mapping_audit_unavailable",nullptr,errno);
     if((target_mode>=0 && (target_mode&6)==6) || (trampoline_mode>=0 && (trampoline_mode&6)==6))
         event("writable_executable_mapping_observed");
     // Evidence only. Do not alter permissions of pages shared with running Lua,
@@ -67,7 +78,7 @@ int encode_replacement(lua_State* state) {
     const auto original=encoder.load(std::memory_order_acquire);
     if(!original) { event("encoder_trampoline_unavailable"); return 0; }
     if(!encode_seen.exchange(true)) event("encoder_called");
-    if(enabled_snapshot) {
+    if(enabled_snapshot && patch_active.load(std::memory_order_acquire)) {
         // No lock or C++ object requiring destruction may span Lua's longjmp.
         const auto result=apply_login_filter(lua,state,5);
         if(result.message) event(result.applied?(result.message==1?"terminal_login_rewritten":"lobby_login_rewritten"):"login_profile_rejected",&result);
@@ -112,16 +123,32 @@ int inspect_image(dl_phdr_info* image,std::size_t,void* output) {
         at<decltype(lua.pushstring)>(image,lua_pushstring_rva),at<decltype(lua.rawget)>(image,lua_rawget_rva),
         at<decltype(lua.rawset)>(image,lua_rawset_rva),at<decltype(lua.checkstack)>(image,lua_checkstack_rva)};
     event("client_profile_verified");
-    void* trampoline=nullptr;
+    void* trampoline=reinterpret_cast<void*>(mf_encode_original);
+    int target_mode=-1,trampoline_mode=-1;
+    if(!read_mapping_modes(image->dlpi_addr+encode_rva,reinterpret_cast<std::uintptr_t>(trampoline),target_mode,trampoline_mode) || target_mode!=5 || trampoline_mode!=5) {
+        event("encoder_mapping_permissions",nullptr,0,target_mode);
+        event("trampoline_mapping_permissions",nullptr,0,trampoline_mode);
+        event("target_mapping_preflight_failed",nullptr,errno,target_mode);
+        return 1;
+    }
+    // No executable allocator, dynamic relocation buffer or Dobby dependency.
+    // The fixed ELF trampoline is valid only for the exact guarded prologue.
+    mf_encode_resume=image->dlpi_addr+encode_rva+16;
+    encoder.store(mf_encode_original,std::memory_order_release);
     const auto started=monotonic_micros();
-    // The only DobbyHook call in this implementation. No loader/network/decode hooks.
-    const int result=DobbyHook(at<void*>(image,encode_rva),reinterpret_cast<void*>(encode_replacement),&trampoline);
+    const long page_size=sysconf(_SC_PAGESIZE);
+    PatchResult result;
+    if(page_size>0) result=install_fixed_patch(at<void*>(image,encode_rva),reinterpret_cast<std::uintptr_t>(encode_replacement),
+        encode_prefix,sizeof(encode_prefix),static_cast<std::size_t>(page_size),PatchOps{
+            [](void* page,std::size_t size,int mode)->int {return mprotect(page,size,mode)==0?0:errno;},
+            [](void* code,std::size_t size){__builtin___clear_cache(static_cast<char*>(code),static_cast<char*>(code)+size);}});
     const auto finished=monotonic_micros();
-    encoder.store(reinterpret_cast<LuaCFunction>(trampoline),std::memory_order_release);
+    patch_active.store(result.installed,std::memory_order_release);
     installed.store(true,std::memory_order_release);
-    event(result==0 && trampoline?"hook_installed":"hook_install_failed",nullptr,result);
+    event(result.installed?"hook_installed":"hook_install_failed",nullptr,result.error);
+    if(result.stage==PatchStage::RestoreFailed) event(result.rx_restored?"entry_rollback_completed":"entry_protection_restore_failed",nullptr,result.restore_error);
     event("hook_install_timing",nullptr,0,-1,finished-started);
-    if(result==0 && trampoline) audit_mappings(image->dlpi_addr+encode_rva,reinterpret_cast<std::uintptr_t>(trampoline));
+    if(result.installed) {event("file_backed_trampoline_selected");audit_mappings(image->dlpi_addr+encode_rva,reinterpret_cast<std::uintptr_t>(trampoline));}
     return 1;
 }
 void* worker(void*) {

@@ -56,8 +56,16 @@ class ControlTests(unittest.TestCase):
             '{"pid":16585,"stage":"hook_installed"}\n'
             '{"pid":16585,"stage":"encoder_mapping_permissions","permissions":5}\n'
             '{"pid":16585,"stage":"mapping_audit_unavailable"}\n'
+            '{"pid":16585,"stage":"file_backed_trampoline_selected"}\n'
             '{"pid":16585,"stage":"worker_completed","duration_us":24000}\n')
         self.assertIn('stage=hook_installed',self.call('status').stdout)
+    def test_rollback_diagnostic_keeps_the_failure_status(self):
+        self.call('game','1')
+        (self.dir/'state/system-module.log').write_text(
+            '{"pid":16585,"stage":"hook_install_failed"}\n'
+            '{"pid":16585,"stage":"entry_rollback_completed"}\n'
+            '{"pid":16585,"stage":"worker_completed"}\n')
+        self.assertIn('stage=hook_failed',self.call('status').stdout)
     def test_collector_recovers_from_unexpected_eof(self):
         shutil.copyfile(ROOT/'collector.sh',self.dir/'collector.sh')
         (self.dir/'bin/logcat').write_text('''#!/bin/sh

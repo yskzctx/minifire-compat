@@ -12,5 +12,5 @@ if($LASTEXITCODE -ne 0){throw 'Native module build failed'}
 $TaskStrip=Join-Path $SdkRoot 'ndk/26.3.11579264/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-strip.exe'
 & $TaskStrip --strip-unneeded -o (Join-Path $TaskProject 'build/libminifire_minimal.release.so') (Join-Path $TaskProject 'build/libminifire_minimal.so')
 if($LASTEXITCODE -ne 0){throw 'Release binary strip failed'}
-& uv run python (Join-Path $TaskProject 'tools/package.py') (Join-Path $TaskProject '../../outputs/Minifire-Minimal-Hook-2.0.2-audit-candidate.zip')
+& uv run python (Join-Path $TaskProject 'tools/package.py') (Join-Path $TaskProject '../../outputs/Minifire-Fixed-Trampoline-2.1.0-candidate.zip')
 if($LASTEXITCODE -ne 0){throw 'Packaging failed'}
