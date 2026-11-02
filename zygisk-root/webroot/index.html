@@ -16,11 +16,11 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">Zygisk · v0.6.0</div><h1>迷枪苹果区兼容</h1>
+  <div class="eyebrow">Zygisk · v0.6.1</div><h1>迷枪苹果区兼容</h1>
   <p>分别控制游戏和 Hunter 的模块加载。开关保存后，完全退出目标应用再打开即可生效。</p>
   <section class="card row"><div><h2>游戏兼容</h2><div class="sub">com.miniworldroyale.sparkgame</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="游戏兼容"><span class="track"></span></label></section>
   <section class="card row"><div><h2>Hunter 检查</h2><div class="sub">com.zhenxi.hunter</div></div><label class="switch"><input id="hunter" type="checkbox" disabled aria-label="Hunter 检查"><span class="track"></span></label></section>
-  <section class="card"><div class="toolbar"><h2>模块日志</h2><button id="refresh" type="button">刷新日志</button></div><p>仅显示本模块的加载、Hook 和登录过滤状态；不记录手机号或凭据。</p><pre id="logs">正在读取…</pre></section>
+  <section class="card"><div class="toolbar"><h2>系统日志</h2><div><button id="refresh" type="button">刷新日志</button> <button id="copy" type="button">复制日志</button></div></div><p>显示最近 1500 行原始 logcat（main、system、crash）。系统日志可能含其他应用的隐私信息，分享前请检查。</p><pre id="logs">正在读取…</pre></section>
   <p id="status" role="status"></p>
 </main><script>
   'use strict';
@@ -84,7 +84,7 @@
   }
   function run(argument){
     const ksu=bridge();
-    if(argument==='logs') return ksu.exec("logcat -d -v time -t 200 -s MinifireCompatZ:V '*:S' 2>&1");
+    if(argument==='logs') return ksu.exec('logcat -d -b main -b system -b crash -v threadtime -t 1500 2>&1');
     const active=findBackend();
     let command;
     if(active.type==='script') command=active.command+' '+argument;
@@ -124,5 +124,19 @@
   game.addEventListener('change',()=>update(game));hunter.addEventListener('change',()=>update(hunter));
   function refresh(){try{logs.textContent=run('logs').trim()||'暂无模块日志。启动目标应用后再刷新。';}catch(error){logs.textContent='读取日志失败：'+error;}}
   document.getElementById('refresh').addEventListener('click',refresh);
+  document.getElementById('copy').addEventListener('click',()=>{
+    const value=logs.textContent;
+    if(typeof navigator!=='undefined' && navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(value).then(()=>show('日志已复制'),error=>show('复制失败：'+error));
+      return;
+    }
+    try{
+      const field=document.createElement('textarea');
+      field.value=value;field.style.position='fixed';field.style.opacity='0';
+      document.body.appendChild(field);field.select();
+      const copied=document.execCommand('copy');field.remove();
+      show(copied?'日志已复制':'复制失败：请长按日志框选择文本');
+    }catch(error){show('复制失败：'+error);}
+  });
   readStatus();refresh();
 </script></body></html>

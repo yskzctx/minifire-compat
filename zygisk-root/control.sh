@@ -23,7 +23,7 @@ case "$1" in
         printf '\n'
         ;;
     logs)
-        logcat -d -v time -t 200 -s MinifireCompatZ:V '*:S' 2>&1
+        logcat -d -b main -b system -b crash -v threadtime -t 1500 2>&1
         ;;
     *) exit 2;;
 esac

@@ -4,13 +4,14 @@ const assert=require('node:assert/strict');
 const html=fs.readFileSync('zygisk-root/webroot/index.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert(script,'inline UI script');
-const elements=Object.fromEntries(['game','hunter','logs','status','refresh'].map(id=>[id,{
+const elements=Object.fromEntries(['game','hunter','logs','status','refresh','copy'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
 const flags={game:'1',hunter:'0'};
 const calls=[];
-const context={document:{getElementById:id=>elements[id]},window:{ksu:{exec(command){
+let copied='';
+const context={navigator:{clipboard:{writeText(value){copied=value;return Promise.resolve();}}},document:{getElementById:id=>elements[id]},window:{ksu:{exec(command){
   calls.push(command);
   if(command.includes('logcat'))return 'native_stage=3\n';
   assert(command.startsWith('sh /data/adb/modules/minifire_compat_zygisk/control.sh '));
@@ -25,6 +26,12 @@ assert.equal(elements.game.checked,true);
 assert.equal(elements.hunter.checked,false);
 assert.equal(elements.game.disabled,false);
 assert.equal(elements.logs.textContent,'native_stage=3');
+assert(calls.some(command=>command.includes('logcat -d -b main -b system -b crash -v threadtime -t 1500')),
+  'UI must display recent unfiltered system logs');
+assert(calls.every(command=>!command.includes('MinifireCompatZ:V')),
+  'UI log retrieval must not filter to module tag');
+elements.copy.handlers.click();
+assert.equal(copied,elements.logs.textContent,'copy button must copy the displayed raw log');
 elements.hunter.checked=true;
 elements.hunter.handlers.change();
 assert.equal(flags.hunter,'1');
@@ -36,7 +43,7 @@ assert.equal(flags.game,'0');
 assert(calls.every(x=>!x.includes('com.bank')));
 console.log('webui switches and log display ok');
 
-const pendingElements=Object.fromEntries(['game','hunter','logs','status','refresh'].map(id=>[id,{
+const pendingElements=Object.fromEntries(['game','hunter','logs','status','refresh','copy'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -62,7 +69,7 @@ console.log('pending-update module path ok');
 
 // The manager can serve webroot while control.sh is absent from its module path.
 // The UI must still read the packaged flags and fetch logs independently.
-const directElements=Object.fromEntries(['game','hunter','logs','status','refresh'].map(id=>[id,{
+const directElements=Object.fromEntries(['game','hunter','logs','status','refresh','copy'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -92,7 +99,7 @@ directElements.hunter.handlers.change();
 assert.equal(directFlags.hunter,'1');
 console.log('direct-config fallback and independent logs ok');
 
-const missingElements=Object.fromEntries(['game','hunter','logs','status','refresh'].map(id=>[id,{
+const missingElements=Object.fromEntries(['game','hunter','logs','status','refresh','copy'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
@@ -109,7 +116,7 @@ assert.match(missingElements.status.textContent,/custom_modules/);
 assert.match(missingElements.logs.textContent,/loader_hooks=0/);
 console.log('missing-config diagnostics ok');
 
-const repairElements=Object.fromEntries(['game','hunter','logs','status','refresh'].map(id=>[id,{
+const repairElements=Object.fromEntries(['game','hunter','logs','status','refresh','copy'].map(id=>[id,{
   id,checked:false,disabled:true,textContent:'',handlers:{},
   addEventListener(event,handler){this.handlers[event]=handler;}
 }]));
