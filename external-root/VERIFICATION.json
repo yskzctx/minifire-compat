@@ -1,5 +1,5 @@
 {
-  "version": "1.0.4-external-candidate",
+  "version": "1.0.5-external-candidate",
   "date": "2026-11-02",
   "device_tested": false,
   "apple_role_login_verified": false,
@@ -42,7 +42,11 @@
     "ordinary_path_bind_source_and_target_policy": "passed",
     "public_anchor_cache_copy_repeat_cleanup_and_owner_rejection": "passed, shell mocks",
     "private_material_not_staged": "passed",
-    "namespace_bind_helper_dispatch": "passed, no foreign /proc/PID/root bind source"
+    "namespace_bind_helper_dispatch": "passed, no foreign /proc/PID/root bind source",
+    "missing_ipv6_nat_stateful_route_fallback": "passed",
+    "ipv6_filter_uid_port_scope_and_cleanup": "passed",
+    "real_permission_error_remains_fatal": "passed",
+    "missing_reject_rolls_back_partial_startup": "passed"
   },
   "unverified": [
     "Real device mount namespace, SELinux and NAT behavior",
@@ -53,9 +57,9 @@
     "Real device reboot persistence and automatic cleanup"
   ],
   "artifact": {
-    "filename": "Minifire-External-Root-1.0.4-candidate.zip",
-    "sha256": "9e21d7a0a109120021948362eb8f308e9c09ae0604b009db1dd1911da1c27f8e",
-    "bytes": 3092900
+    "filename": "Minifire-External-Root-1.0.5-candidate.zip",
+    "sha256": "41d926e57f193dcc4f3b6ffe30250921144681be61dc2f4a1ce9e4fac0a5126f",
+    "bytes": 3094190
   },
   "resource_failure_root_cause_confirmed": false,
   "boxproxy_ebpf_runtime_verified": false,
@@ -63,7 +67,12 @@
   "all_channel_compatibility_verified": false,
   "selectable_target_package": true,
   "installed_app_discovery": "Root package registry and installed APK directory first; Binder queries only as fallback",
-  "reported_failure": "namespace_private_syscall_ok followed by bind of foreign /proc/PID/root source failing with EINVAL",
+  "reported_failure": "ip6tables IPv6 NAT table absent caused route_init_failed and false cleanup_failed",
   "android_namespace_private_syscall_runtime_verified": false,
-  "android_certificate_bind_runtime_verified": false
+  "android_certificate_bind_runtime_verified": false,
+  "android_ipv4_filter_fallback_runtime_verified": false,
+  "routing_modes": [
+    "dual_stack_nat",
+    "ipv4_with_ipv6_filter"
+  ]
 }

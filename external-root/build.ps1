@@ -18,5 +18,5 @@ try{
     Pop-Location
     foreach($TaskName in $TaskSaved.Keys){[Environment]::SetEnvironmentVariable($TaskName,$TaskSaved[$TaskName],'Process')}
 }
-& uv run python (Join-Path $TaskProject 'tools/package.py') (Join-Path $TaskProject '../../outputs/Minifire-External-Root-1.0.4-candidate.zip')
+& uv run python (Join-Path $TaskProject 'tools/package.py') (Join-Path $TaskProject '../../outputs/Minifire-External-Root-1.0.5-candidate.zip')
 if($LASTEXITCODE -ne 0){throw 'Root module packaging failed'}

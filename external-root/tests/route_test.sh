@@ -2,7 +2,7 @@
 set -eu
 fixture=$(mktemp -d)
 case "$fixture" in */tmp.*) ;; *) exit 1;; esac
-trap 'rm -f "$fixture/route.sh" "$fixture/iptables" "$fixture/calls" "$fixture/state/route_uid"; rmdir "$fixture/state" "$fixture" 2>/dev/null || :' EXIT
+trap 'rm -f "$fixture/route.sh" "$fixture/iptables" "$fixture/calls" "$fixture/state/route_uid" "$fixture/state/route_mode" "$fixture/state/route-probe.txt" "$fixture/state/route-capabilities.txt"; rmdir "$fixture/state" "$fixture" 2>/dev/null || :' EXIT
 cp external-root/route.sh "$fixture/route.sh"
 cat > "$fixture/iptables" <<'SH'
 #!/bin/sh

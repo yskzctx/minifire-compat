@@ -269,7 +269,6 @@ func run() error {
 			return fmt.Errorf("ipv6_listener_failed")
 		}
 		defer ipv6.Close()
-		listener = mergeListeners(listener, ipv6)
 		if *gameUID < 10000 {
 			return fmt.Errorf("game_uid_invalid")
 		}
@@ -277,6 +276,20 @@ func run() error {
 			return err
 		}
 		defer route("stop")
+		modeData, err := os.ReadFile(filepath.Join(filepath.Dir(*routeScript), "state", "route_mode"))
+		if err != nil {
+			return fmt.Errorf("routing_mode_unavailable")
+		}
+		switch strings.TrimSpace(string(modeData)) {
+		case "dual_stack_nat":
+			listener = mergeListeners(listener, ipv6)
+			journal.emit("service", "routing_dual_stack_nat", 0, 0, 0)
+		case "ipv4_with_ipv6_filter":
+			_ = ipv6.Close()
+			journal.emit("service", "routing_ipv4_with_ipv6_filter", 0, 0, 0)
+		default:
+			return fmt.Errorf("routing_mode_invalid")
+		}
 		base := listener
 		listener = newDemux(base, origin.Hostname(), func(connection net.Conn) (string, error) {
 			destination, err := originalDestination(connection)

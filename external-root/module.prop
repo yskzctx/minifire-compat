@@ -1,6 +1,6 @@
 id=minifire_compat_zygisk
 name=迷枪苹果区兼容·进程外
-version=1.0.4-external-candidate
-versionCode=1004
+version=1.0.5-external-candidate
+versionCode=1005
 author=Minifire Compat
 description=独立进程 HTTPS/TCP 转发；不含 LSPosed 或 Zygisk 注入库，使用游戏 UID 路由与游戏独立命名空间证书。
