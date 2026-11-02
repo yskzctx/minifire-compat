@@ -106,7 +106,7 @@ if [ "$1" = stop ]; then
         while [ "$stop_wait" -lt 30 ] && controller_alive "$stop_owner"; do sleep 0.1; stop_wait=$((stop_wait+1)); done
         if controller_alive "$stop_owner"; then kill -9 "$stop_owner" 2>/dev/null || :; fi
     fi
-    if stop_proxy; then status disabled; else status cleanup_failed; exit 1; fi
+    if stop_proxy && sh "$MODDIR/trust.sh" clear-cache >> "$STATE/cleanup.txt" 2>&1; then status disabled; else status cleanup_failed; exit 1; fi
     rm -f "$STATE/controller.lock/pid"
     rmdir "$STATE/controller.lock" 2>/dev/null || :
     exit 0
@@ -122,7 +122,15 @@ if ! mkdir "$STATE/controller.lock" 2>/dev/null; then
     mkdir "$STATE/controller.lock" || exit 1
 fi
 printf '%s\n' "$$" > "$STATE/controller.lock/pid"
-cleanup(){ stop_worker "$$"; stop_proxy || status cleanup_failed; rm -f "$STATE/controller.lock/pid"; rmdir "$STATE/controller.lock" 2>/dev/null || :; }
+cleanup(){
+    stop_worker "$$"
+    if stop_proxy; then
+        if [ "$(cat "$MODDIR/game_enabled" 2>/dev/null)" != 1 ] || [ -f "$MODDIR/disable" ] || [ -f "$MODDIR/remove" ]; then
+            sh "$MODDIR/trust.sh" clear-cache >> "$STATE/cleanup.txt" 2>&1 || status cleanup_failed
+        fi
+    else status cleanup_failed; fi
+    rm -f "$STATE/controller.lock/pid"; rmdir "$STATE/controller.lock" 2>/dev/null || :
+}
 trap 'cleanup' EXIT
 trap 'exit 0' INT TERM HUP
 prepared=0

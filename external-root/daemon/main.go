@@ -23,6 +23,21 @@ import (
 )
 
 func run() error {
+	if len(os.Args) > 1 && os.Args[1] == "namespace-bind" {
+		flags := flag.NewFlagSet("namespace-bind", flag.ContinueOnError)
+		expected := flags.String("expected-namespace", "", "expected game namespace")
+		controller := flags.String("controller-namespace", "", "controller namespace")
+		source := flags.String("source", "", "local certificate cache directory")
+		target := flags.String("target", "", "allowed certificate target")
+		if err := flags.Parse(os.Args[2:]); err != nil {
+			return err
+		}
+		if err := bindTrustMount(*expected, *controller, *source, *target, os.Readlink, mountTrustDirectory); err != nil {
+			return err
+		}
+		fmt.Printf("certificate_bind_syscall_ok target=%s\n", *target)
+		return nil
+	}
 	if len(os.Args) > 1 && os.Args[1] == "namespace-private" {
 		flags := flag.NewFlagSet("namespace-private", flag.ContinueOnError)
 		expected := flags.String("expected-namespace", "", "expected game mount namespace")

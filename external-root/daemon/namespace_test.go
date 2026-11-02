@@ -51,3 +51,45 @@ func TestPrivateNamespaceRejectsUnreadableNamespace(t *testing.T) {
 		t.Fatal("missing namespace accepted")
 	}
 }
+
+func TestTrustBindRejectsForeignNamespaceSourceAndUnexpectedTarget(t *testing.T) {
+	link := func(path string) (string, error) {
+		if path == "/proc/self/ns/mnt" {
+			return "mnt:[300]", nil
+		}
+		return "mnt:[100]", nil
+	}
+	for _, row := range []struct {
+		source, target string
+		ok             bool
+	}{
+		{"/data/local/tmp/minifire_compat_zygisk/trust", "/apex/com.android.conscrypt/cacerts", true},
+		{"/data/local/tmp/minifire_compat_zygisk/trust", "/system/etc/security/cacerts", true},
+		{"/proc/123/root/data/adb/modules/minifire_compat_zygisk/state/trust", "/apex/com.android.conscrypt/cacerts", false},
+		{"/data/local/tmp/minifire_compat_zygisk/trust", "/system", false},
+	} {
+		called := false
+		err := bindTrustMount("mnt:[300]", "mnt:[200]", row.source, row.target, link, func(source, target string) error { called = true; return nil })
+		if called != row.ok || (err == nil) != row.ok {
+			t.Fatalf("bind policy: %+v called=%v err=%v", row, called, err)
+		}
+	}
+}
+
+func TestTrustBindRequiresIsolatedNamespaceAndPreservesKernelError(t *testing.T) {
+	called := false
+	link := func(path string) (string, error) { return "mnt:[100]", nil }
+	if err := bindTrustMount("mnt:[100]", "mnt:[200]", "/data/local/tmp/minifire_compat_zygisk/trust", "/system/etc/security/cacerts", link, func(string, string) error { called = true; return nil }); err == nil || called {
+		t.Fatal("bind reached init namespace")
+	}
+	sentinel := errors.New("fixture EINVAL")
+	link = func(path string) (string, error) {
+		if path == "/proc/self/ns/mnt" {
+			return "mnt:[300]", nil
+		}
+		return "mnt:[100]", nil
+	}
+	if err := bindTrustMount("mnt:[300]", "mnt:[200]", "/data/local/tmp/minifire_compat_zygisk/trust", "/system/etc/security/cacerts", link, func(string, string) error { return sentinel }); !errors.Is(err, sentinel) {
+		t.Fatal(err)
+	}
+}
