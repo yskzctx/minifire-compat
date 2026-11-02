@@ -50,6 +50,14 @@ class ControlTests(unittest.TestCase):
         self.assertIn('stage=module_not_observed',self.call('status').stdout)
         (self.dir/'state/hooks.jsonl').write_text('{"pid":16585,"stage":"app_config_received"}\n')
         self.assertIn('stage=module_startup_incomplete',self.call('status').stdout)
+    def test_readonly_audit_metrics_do_not_override_installed_status(self):
+        self.call('game','1')
+        (self.dir/'state/system-module.log').write_text(
+            '{"pid":16585,"stage":"hook_installed"}\n'
+            '{"pid":16585,"stage":"encoder_mapping_permissions","permissions":5}\n'
+            '{"pid":16585,"stage":"mapping_audit_unavailable"}\n'
+            '{"pid":16585,"stage":"worker_completed","duration_us":24000}\n')
+        self.assertIn('stage=hook_installed',self.call('status').stdout)
     def test_collector_recovers_from_unexpected_eof(self):
         shutil.copyfile(ROOT/'collector.sh',self.dir/'collector.sh')
         (self.dir/'bin/logcat').write_text('''#!/bin/sh

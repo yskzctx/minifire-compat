@@ -35,8 +35,9 @@ case "$1" in
         pid=$(pidof "$GAME" 2>/dev/null | awk '{print $1}')
         case "$pid" in ''|*[!0-9]*) ;; *)
             stage=module_not_observed
-            line=$(grep -F "\"pid\":$pid," "$STATE/hooks.jsonl" 2>/dev/null | tail -n 1)
-            collected=$(grep -F "\"pid\":$pid," "$STATE/system-module.log" 2>/dev/null | tail -n 1)
+            audit_stages='"stage":"(encoder_mapping_permissions|trampoline_mapping_permissions|mapping_audit_unavailable|writable_executable_mapping_observed|worker_completed|hook_install_timing)"'
+            line=$(grep -F "\"pid\":$pid," "$STATE/hooks.jsonl" 2>/dev/null | grep -Ev "$audit_stages" | tail -n 1)
+            collected=$(grep -F "\"pid\":$pid," "$STATE/system-module.log" 2>/dev/null | grep -Ev "$audit_stages" | tail -n 1)
             [ -z "$collected" ] || line=$collected
             case "$line" in
                 *'"stage":"terminal_login_rewritten"'*|*'"stage":"lobby_login_rewritten"'*) stage=login_rewritten;;

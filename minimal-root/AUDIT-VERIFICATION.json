@@ -1,0 +1,43 @@
+{
+  "version": "2.0.2-audit-candidate",
+  "date": "2026-11-02",
+  "device_tested": false,
+  "apple_role_login_verified_this_candidate": false,
+  "baseline": "2.0.1 user-reported success, original ZIP unchanged",
+  "baseline_zip_sha256": "51382311c68c344f8f0dba0689948e9b26a2c1ff2af7a38a8575eea666a6ad2e",
+  "business_filter_changed": false,
+  "explicit_business_hooks": 1,
+  "dobby_engine_changed": false,
+  "removes_anonymous_executable_trampoline": false,
+  "eliminates_transient_rwx": false,
+  "claims_lower_detection_probability": false,
+  "changes": [
+    "Explicit export version script and release ELF policy gate",
+    "One-time read-only maps permission observation for target and backup",
+    "One-time monotonic installation/worker durations",
+    "Audit events do not override operational status"
+  ],
+  "host_checks": {
+    "elf_policy_tests": 3,
+    "mapping_parser_assertions": 9,
+    "control_and_collector_tests": 8,
+    "real_lua_protobuf_filter_tests": 22,
+    "build_id_guard_tests": 5,
+    "webui": "passed",
+    "shell_syntax": "passed",
+    "android_build": "passed",
+    "zip_integrity_and_allowlist": "passed",
+    "production_filter_unchanged": "verified"
+  },
+  "runtime_unverified": [
+    "Mapping backing paths and permissions on real phone",
+    "Transient RWX duration or failed permission restoration",
+    "Game detection checks/frequency",
+    "Candidate login/match/reboot"
+  ],
+  "artifact": {
+    "filename": "Minifire-Minimal-Hook-2.0.2-audit-candidate.zip",
+    "bytes": 101013,
+    "sha256": "5c70df50d404470e3c278947ec1c29ad7db8e68ab345006dda91f4abb634818a"
+  }
+}

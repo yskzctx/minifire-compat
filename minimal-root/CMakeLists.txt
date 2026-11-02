@@ -4,4 +4,6 @@ add_library(minifire_minimal SHARED src/module.cpp ../app/src/main/cpp/login_fil
 target_compile_features(minifire_minimal PRIVATE cxx_std_17)
 target_compile_options(minifire_minimal PRIVATE -Wall -Wextra -Werror -fvisibility=hidden -fstack-protector-strong -fno-exceptions -fno-rtti)
 target_link_options(minifire_minimal PRIVATE -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -Wl,--exclude-libs,ALL)
+target_link_options(minifire_minimal PRIVATE "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map")
+set_property(TARGET minifire_minimal APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/exports.map")
 target_link_libraries(minifire_minimal PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/libdobby.a dl log)

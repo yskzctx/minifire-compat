@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-02",
+  "scope": "Published successful 2.0.1 artifact plus current audit changes",
+  "baseline_zip_sha256": "51382311c68c344f8f0dba0689948e9b26a2c1ff2af7a38a8575eea666a6ad2e",
+  "baseline_so_sha256": "4dce5ad3c60eaa04dc688ac90e7ef637233c8f55cd80bb31e63f1ac3f1036880",
+  "baseline_elf_policy": {
+    "exports": [
+      "zygisk_companion_entry",
+      "zygisk_module_entry"
+    ],
+    "dependencies": [
+      "libc.so",
+      "libdl.so",
+      "liblog.so",
+      "libm.so"
+    ],
+    "writable_executable_load": false,
+    "executable_stack": false,
+    "text_relocations": false,
+    "full_relro": true,
+    "minimum_load_alignment": 16384,
+    "debug_sections": []
+  },
+  "dobby_static_archive_sha256": "609ed766e94c21313a4373ed62a3b296bd12c8b4bfabfab4df19a611b0a38746",
+  "dobby_disassembly_review": {
+    "allocate_code_chunk_permission_enum": 4,
+    "permission_enum_translation": [
+      0,
+      1,
+      3,
+      7,
+      5
+    ],
+    "code_mapping_posix_protection": 5,
+    "mmap_fd": -1,
+    "anonymous_private_flags": 34,
+    "code_patch_protection_sequence": [
+      7,
+      5
+    ],
+    "code_patch_checks_mprotect_return": false,
+    "runtime_maps_collected": false
+  },
+  "candidate_elf_policy": {
+    "exports": [
+      "zygisk_companion_entry",
+      "zygisk_module_entry"
+    ],
+    "dependencies": [
+      "libc.so",
+      "libdl.so",
+      "liblog.so",
+      "libm.so"
+    ],
+    "writable_executable_load": false,
+    "executable_stack": false,
+    "text_relocations": false,
+    "full_relro": true,
+    "minimum_load_alignment": 16384,
+    "debug_sections": []
+  },
+  "claims_not_verified": [
+    "Game risk-control detection implementation or frequency",
+    "Actual ZygiskNext SO mapping path",
+    "Real phone transient/permanent RWX or trampoline permissions",
+    "Candidate phone login/match/reboot"
+  ]
+}

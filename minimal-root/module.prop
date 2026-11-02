@@ -1,6 +1,6 @@
 id=minifire_compat_zygisk
 name=迷枪苹果区兼容 · 单入口 Hook
-version=2.0.1-minimal-candidate
-versionCode=2001
+version=2.0.2-audit-candidate
+versionCode=2002
 author=Codex
 description=Root 管理器控制；Zygisk Next 加载；只 Hook 登录序列化入口，不依赖 LSPosed 作用域。真机待验证。

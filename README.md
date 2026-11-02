@@ -11,3 +11,5 @@
 失败 Root/透明代理发行版已从 GitHub 移除；本地永久删除被自动审批拦截，尚未完成。详见[清理记录](docs/CLEANUP-2026-11-02.md)。`external-root/`、`zygisk-root/`、`proxy_offline/` 当前仍是失败历史源码，不作为可用产品或推荐构建入口。
 
 [纯 Java 可选研究](docs/JAVA-OPTIONAL-RESEARCH.md)与已成功方案分开。当前定位到 SDK→Unity 的 Java 桥接，但尚无它能控制两段游戏登录字段的完整证明，不把纯 Java 或较少 Hook 等同于更低检测概率。
+
+[18 项 Native 暴露面审查与最小修订](docs/NATIVE-EXPOSURE-REVIEW.md)：2.0.2 仅为审计诊断候选，2.0.1 成功安装包保持原样。不承诺更低检测率。

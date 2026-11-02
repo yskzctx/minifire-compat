@@ -4,6 +4,7 @@
 #include "../../app/src/main/cpp/login_filter.hpp"
 #include "../../app/src/main/cpp/binary_guard.hpp"
 #include "policy.hpp"
+#include "mapping_permissions.hpp"
 #include "generated/profile.hpp"
 #include <android/log.h>
 #include <atomic>
@@ -27,15 +28,37 @@ LuaApi lua{};
 std::atomic<LuaCFunction> encoder{nullptr};
 std::atomic<bool> installed{false}, encode_seen{false};
 
-void event(const char* stage,const FilterResult* result=nullptr,int error=0) {
+void event(const char* stage,const FilterResult* result=nullptr,int error=0,int permissions=-1,long long duration_us=-1) {
     char line[640]; timespec stamp{}; clock_gettime(CLOCK_REALTIME,&stamp);
     const int n=std::snprintf(line,sizeof(line),
-        "{\"time_unix\":%lld,\"pid\":%d,\"stage\":\"%s\",\"error\":%d,\"message\":%d,\"applied\":%d,\"os_before\":%d,\"os_after\":%d,\"channel_before\":%d,\"channel_after\":%d,\"apple_version\":%d}\n",
+        "{\"time_unix\":%lld,\"pid\":%d,\"stage\":\"%s\",\"error\":%d,\"message\":%d,\"applied\":%d,\"os_before\":%d,\"os_after\":%d,\"channel_before\":%d,\"channel_after\":%d,\"apple_version\":%d,\"permissions\":%d,\"duration_us\":%lld}\n",
         static_cast<long long>(stamp.tv_sec),getpid(),stage,error,result?result->message:0,
         result&&result->applied?1:0,result?result->original_os:-1,result?result->selected_os:-1,
-        result?result->original_channel:-1,result?result->selected_channel:-1,result&&result->version_profile?1:0);
+        result?result->original_channel:-1,result?result->selected_channel:-1,result&&result->version_profile?1:0,permissions,duration_us);
     if(n<=0 || static_cast<std::size_t>(n)>=sizeof(line)) return;
     __android_log_print(ANDROID_LOG_INFO,"MinifireCompatM","%s",line);
+}
+long long monotonic_micros() {
+    timespec now{};
+    return clock_gettime(CLOCK_MONOTONIC,&now)==0?static_cast<long long>(now.tv_sec)*1000000+now.tv_nsec/1000:0;
+}
+void audit_mappings(std::uintptr_t target,std::uintptr_t trampoline) {
+    FILE* maps=std::fopen("/proc/self/maps","r");
+    if(!maps) {event("mapping_audit_unavailable",nullptr,errno);return;}
+    char row[1024];int target_mode=-1,trampoline_mode=-1;
+    for(int rows=0;rows<8192 && std::fgets(row,sizeof(row),maps);++rows) {
+        if(target_mode<0) target_mode=mapping_permissions(row,target);
+        if(trampoline_mode<0) trampoline_mode=mapping_permissions(row,trampoline);
+        if(target_mode>=0 && trampoline_mode>=0) break;
+    }
+    std::fclose(maps);
+    event("encoder_mapping_permissions",nullptr,0,target_mode);
+    event("trampoline_mapping_permissions",nullptr,0,trampoline_mode);
+    if(target_mode<0 || trampoline_mode<0) event("mapping_audit_unavailable");
+    if((target_mode>=0 && (target_mode&6)==6) || (trampoline_mode>=0 && (trampoline_mode&6)==6))
+        event("writable_executable_mapping_observed");
+    // Evidence only. Do not alter permissions of pages shared with running Lua,
+    // camouflage map names, intercept reads, or change successful login behavior.
 }
 
 int encode_replacement(lua_State* state) {
@@ -90,22 +113,27 @@ int inspect_image(dl_phdr_info* image,std::size_t,void* output) {
         at<decltype(lua.rawset)>(image,lua_rawset_rva),at<decltype(lua.checkstack)>(image,lua_checkstack_rva)};
     event("client_profile_verified");
     void* trampoline=nullptr;
+    const auto started=monotonic_micros();
     // The only DobbyHook call in this implementation. No loader/network/decode hooks.
     const int result=DobbyHook(at<void*>(image,encode_rva),reinterpret_cast<void*>(encode_replacement),&trampoline);
+    const auto finished=monotonic_micros();
     encoder.store(reinterpret_cast<LuaCFunction>(trampoline),std::memory_order_release);
     installed.store(true,std::memory_order_release);
     event(result==0 && trampoline?"hook_installed":"hook_install_failed",nullptr,result);
+    event("hook_install_timing",nullptr,0,-1,finished-started);
+    if(result==0 && trampoline) audit_mappings(image->dlpi_addr+encode_rva,reinterpret_cast<std::uintptr_t>(trampoline));
     return 1;
 }
 void* worker(void*) {
     event("waiting_game_library");
+    const auto started=monotonic_micros();
     for(int attempt=0;attempt<2100;++attempt) {
         if(!enabled_snapshot) { event("disabled_before_hook"); return nullptr; }
         bool found=false;
         // Keep the dynamic linker's enumeration lock while validating/installing,
         // so the inspected image cannot unload between range checks and the hook.
         dl_iterate_phdr(inspect_image,&found);
-        if(found) return nullptr;
+        if(found) {event("worker_completed",nullptr,0,-1,monotonic_micros()-started);return nullptr;}
         usleep(attempt<1000?10000:100000);
     }
     event("game_library_wait_timeout"); return nullptr;
