@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -180,6 +181,7 @@ func run() error {
 		return fmt.Errorf("journal_directory_failed")
 	}
 	journal := &eventLog{path: *journalPath, target: *targetPackage}
+	_ = os.Remove(filepath.Join(filepath.Dir(*materialPath), "destination-error.txt"))
 	route := func(action string, args ...string) error {
 		if *routeScript == "" {
 			return nil
@@ -292,18 +294,19 @@ func run() error {
 		}
 		base := listener
 		listener = newDemux(base, origin.Hostname(), func(connection net.Conn) (string, error) {
-			destination, err := originalDestination(connection)
-			host, port, _ := net.SplitHostPort(destination)
-			ip := net.ParseIP(host)
-			if err == nil && ip != nil && ip.IsLoopback() && port == "18443" {
-				return "", errDirectConnection
+			destination, method, err := recoverDestination(connection, *gameUID, originalDestination, readProcTCPTables)
+			if errors.Is(err, errDirectConnection) {
+				return "", err
 			}
 			if err != nil {
-				if *fatalFile != "" {
+				_ = writePrivate(filepath.Dir(*materialPath), "destination-error.txt", []byte(err.Error()+"\n"))
+				if *fatalFile != "" && !errors.Is(err, errTargetSocketMissing) {
 					_ = os.WriteFile(*fatalFile, []byte("original_destination_unavailable\n"), 0600)
 				}
-				return "", fmt.Errorf("original_destination_unavailable")
+				return "", err
 			}
+			_ = os.Remove(filepath.Join(filepath.Dir(*materialPath), "destination-error.txt"))
+			journal.emit("connection", "original_destination_"+method, 0, 0, 0)
 			return destination, nil
 		}, journal, *version)
 		defer listener.Close()

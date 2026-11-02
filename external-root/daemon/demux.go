@@ -76,6 +76,7 @@ func (l *demuxListener) Close() error {
 }
 func (l *demuxListener) classify(connection net.Conn) {
 	id := fmt.Sprintf("tls-%x", time.Now().UnixNano())
+	l.journal.emit(id, "connection_accepted", 0, 0, 0)
 	destination, err := l.destination(connection)
 	if err != nil || destination == l.Listener.Addr().String() {
 		stage := "original_destination_unavailable"

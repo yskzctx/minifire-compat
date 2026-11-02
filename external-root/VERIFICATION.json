@@ -1,5 +1,5 @@
 {
-  "version": "1.0.5-external-candidate",
+  "version": "1.0.6-external-candidate",
   "date": "2026-11-02",
   "device_tested": false,
   "apple_role_login_verified": false,
@@ -11,7 +11,7 @@
   "validated_client": "official Android ARM64 1.0.77, exact libil2cpp SHA256 gate",
   "target_version_declaration": "1.0.79",
   "host_checks": {
-    "go_native_tests_passed": 30,
+    "go_native_tests_passed": 35,
     "go_vet": "passed",
     "python_reference_tests_passed": 23,
     "uid_route_mock": "passed",
@@ -46,7 +46,10 @@
     "missing_ipv6_nat_stateful_route_fallback": "passed",
     "ipv6_filter_uid_port_scope_and_cleanup": "passed",
     "real_permission_error_remains_fatal": "passed",
-    "missing_reject_rolls_back_partial_startup": "passed"
+    "missing_reject_rolls_back_partial_startup": "passed",
+    "destination_exact_endpoint_uid_fallback": "passed, including ambiguity, self-recursion, IPv6-mapped endpoints and numeric errno retention",
+    "linux_real_tcp_uid_fallback": "passed in root Linux with UID12345 child and forced socket-option failure; no NAT or Android runtime test",
+    "destination_diagnostics_display_and_export_allowlist": "passed"
   },
   "unverified": [
     "Real device mount namespace, SELinux and NAT behavior",
@@ -57,9 +60,9 @@
     "Real device reboot persistence and automatic cleanup"
   ],
   "artifact": {
-    "filename": "Minifire-External-Root-1.0.5-candidate.zip",
-    "sha256": "41d926e57f193dcc4f3b6ffe30250921144681be61dc2f4a1ce9e4fac0a5126f",
-    "bytes": 3094190
+    "filename": "Minifire-External-Root-1.0.6-candidate.zip",
+    "sha256": "4b363fdc13f29152dc927a45bc79c72c5e5c7bf6bffd99a4b803debe8669c9dc",
+    "bytes": 3099007
   },
   "resource_failure_root_cause_confirmed": false,
   "boxproxy_ebpf_runtime_verified": false,
@@ -67,7 +70,7 @@
   "all_channel_compatibility_verified": false,
   "selectable_target_package": true,
   "installed_app_discovery": "Root package registry and installed APK directory first; Binder queries only as fallback",
-  "reported_failure": "ip6tables IPv6 NAT table absent caused route_init_failed and false cleanup_failed",
+  "reported_failure": "Accepted game connection failed original destination lookup; prior code discarded kernel errno",
   "android_namespace_private_syscall_runtime_verified": false,
   "android_certificate_bind_runtime_verified": false,
   "android_ipv4_filter_fallback_runtime_verified": false,

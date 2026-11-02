@@ -22,6 +22,10 @@
 
 ## 运行方式
 
+1.0.6 修复 `original_destination_unavailable` 的可恢复路径：优先使用内核 `SO_ORIGINAL_DST`，失败后读取本机 `/proc/net/tcp{,6}`，只接受与已接收连接的客户端 IP、端口及所选游戏 UID 完全匹配的唯一目的地址。拒绝歧义和代理自循环，不靠 DNS/SNI 猜目标地址。后备查询需要 Root 可读取 TCP 表；SELinux 拒绝或查不到连接仍不能保证转发。`destination-error.txt` 保存内核数值 errno 和后备查询错误，并进入刷新/导出名单；事件新增 `connection_accepted`、`original_destination_kernel_sockopt`、`original_destination_proc_client_tuple`。无关的本机直连探测不再触发全局关闭，已经消失的客户端连接只关闭本次连接。未增加游戏 Hook、Zygisk 库或全局证书改动。
+
+新增五项目的地址解析回归测试；另外在 Root Linux 环境以 UID 12345 的真实子进程建立 TCP 连接，强制内核查询失败，实测 TCP 表后备解析成功。这是 Linux 套接字/UID 测试，没有模拟或验证安卓 NAT、SELinux、游戏证书信任或苹果角色登录。
+
 1. Root 管理器覆盖安装本 ZIP 并重启。模块 ID 沿用 `minifire_compat_zygisk`，安装脚本删除先前版本的 Zygisk 注入库。首次迁移到此实现默认关闭。
 2. 关闭旧 LSPosed 兼容模块的游戏作用域。在新模块 WebUI 选择并保存目标应用包名，然后开启唯一的账号兼容开关，等到“已准备，等待打开游戏”。官方版默认包名仍为 `com.miniworldroyale.sparkgame`。
 3. 彻底退出游戏后重新打开。开启状态会保存，后续重启由模块启动服务，无需再打开 WebUI。

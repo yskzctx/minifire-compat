@@ -27,3 +27,9 @@ printf '%s\n' "$status_result" | grep -q '^target=com.example.minifire.channel$'
 if sh "$fixture/control.sh" target 'com.app;id'; then exit 1; fi
 [ "$(cat "$fixture/target_package")" = com.example.minifire.channel ]
 echo 'selected target is validated and saved after cleanup'
+printf 'kernel=errno=92; proc=fixture_permission_denied\n' > "$fixture/state/destination-error.txt"
+diagnostic=$(sh "$fixture/control.sh" logs)
+printf '%s\n' "$diagnostic" | grep -q '^\[destination-error.txt\]$'
+printf '%s\n' "$diagnostic" | grep -q 'kernel=errno=92; proc=fixture_permission_denied'
+rm -f "$fixture/state/destination-error.txt"
+echo 'original destination failure details are readable through control logs'
