@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -22,6 +23,51 @@ import (
 )
 
 func run() error {
+	if len(os.Args) > 1 && (os.Args[1] == "apps" || os.Args[1] == "target") {
+		flags := flag.NewFlagSet(os.Args[1], flag.ContinueOnError)
+		list := flags.String("packages-list", "/data/system/packages.list", "root package registry")
+		name := flags.String("package", "", "selected application package")
+		if err := flags.Parse(os.Args[2:]); err != nil {
+			return err
+		}
+		if os.Args[1] == "target" && !validPackage(*name) {
+			return fmt.Errorf("target_package_invalid")
+		}
+		apps, err := readInstalledApps(*list)
+		if err != nil {
+			return err
+		}
+		if os.Args[1] == "apps" {
+			return json.NewEncoder(os.Stdout).Encode(apps)
+		}
+		for _, app := range apps {
+			if app.Package == *name {
+				fmt.Println(*name)
+				return nil
+			}
+		}
+		return fmt.Errorf("target_package_not_installed")
+	}
+	if len(os.Args) > 1 && os.Args[1] == "locate" {
+		flags := flag.NewFlagSet("locate", flag.ContinueOnError)
+		list := flags.String("packages-list", "/data/system/packages.list", "root package registry")
+		root := flags.String("app-root", "/data/app", "installed application directory")
+		name := flags.String("package", gamePackage, "selected application package")
+		if err := flags.Parse(os.Args[2:]); err != nil {
+			return err
+		}
+		roots := []string{*root}
+		if *root == "/data/app" {
+			expanded, _ := filepath.Glob("/mnt/expand/*/app")
+			roots = append(roots, expanded...)
+		}
+		game, err := locateInstalledGame(*list, roots, *name)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("apk=%s\nuid=%d\nsource=root_package_registry_and_apk_directory\n", game.APK, game.UID)
+		return nil
+	}
 	if len(os.Args) > 1 && os.Args[1] == "prepare" {
 		flags := flag.NewFlagSet("prepare", flag.ContinueOnError)
 		apk := flags.String("apk", "", "installed base APK path")
@@ -71,9 +117,13 @@ func run() error {
 	lobbyListen := flag.String("lobby-listen", "127.0.0.1:19000", "loopback lobby listener")
 	routeScript := flag.String("route-script", "", "optional root routing script")
 	gameUID := flag.Int("game-uid", 0, "target application UID for root routing")
+	targetPackage := flag.String("target-package", gamePackage, "selected application package for diagnostics")
 	readyFile := flag.String("ready-file", "", "optional startup marker")
 	fatalFile := flag.String("fatal-file", "", "optional client trust failure marker")
 	flag.Parse()
+	if !validPackage(*targetPackage) {
+		return fmt.Errorf("target_package_invalid")
+	}
 	host, _, err := net.SplitHostPort(*listen)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
 		return fmt.Errorf("listener_must_be_loopback")
@@ -101,7 +151,7 @@ func run() error {
 	if err = os.MkdirAll(filepath.Dir(*journalPath), 0700); err != nil {
 		return fmt.Errorf("journal_directory_failed")
 	}
-	journal := &eventLog{path: *journalPath}
+	journal := &eventLog{path: *journalPath, target: *targetPackage}
 	route := func(action string, args ...string) error {
 		if *routeScript == "" {
 			return nil

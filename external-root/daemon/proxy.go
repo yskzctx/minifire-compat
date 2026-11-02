@@ -25,6 +25,7 @@ type eventLog struct {
 	w         io.Writer
 	path      string
 	lastError error
+	target    string
 }
 type event struct {
 	Time    string `json:"time"`
@@ -33,6 +34,7 @@ type event struct {
 	Status  int    `json:"status,omitempty"`
 	Input   int    `json:"input_bytes,omitempty"`
 	Output  int    `json:"output_bytes,omitempty"`
+	Target  string `json:"target_package,omitempty"`
 }
 
 func (l *eventLog) emit(id, stage string, status, input, output int) {
@@ -43,7 +45,7 @@ func (l *eventLog) emit(id, stage string, status, input, output int) {
 			fmt.Fprintln(os.Stderr, "journal_write_failed")
 		}
 	}()
-	entry := event{time.Now().UTC().Format(time.RFC3339Nano), id, stage, status, input, output}
+	entry := event{Time: time.Now().UTC().Format(time.RFC3339Nano), Request: id, Stage: stage, Status: status, Input: input, Output: output, Target: l.target}
 	if l.w != nil {
 		l.lastError = json.NewEncoder(l.w).Encode(entry)
 		return

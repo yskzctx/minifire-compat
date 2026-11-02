@@ -1,19 +1,24 @@
 #!/system/bin/sh
 MODDIR=${0%/*}
 STATE="$MODDIR/state"
+. "$MODDIR/config.sh" || exit 1
+read_target || { [ "$1" = unmount ] || exit 1; }
 PROC=${MINIFIRE_PROC:-/proc}
 NSENTER=${MINIFIRE_NSENTER:-nsenter}
 APEX=${MINIFIRE_TRUST_APEX:-/apex/com.android.conscrypt/cacerts}
 SYSTEM=${MINIFIRE_TRUST_SYSTEM:-/system/etc/security/cacerts}
 fail(){ printf '%s\n' "$1"; exit 1; }
 valid_pid(){ case "$1" in ''|*[!0-9]*) return 1;; esac; [ "$1" -gt 1 ]; }
-game_process(){ [ -r "$PROC/$1/cmdline" ] && [ "$(tr '\000' '\n' < "$PROC/$1/cmdline" | head -n 1)" = com.miniworldroyale.sparkgame ]; }
+game_process(){ [ -r "$PROC/$1/cmdline" ] && [ "$(tr '\000' '\n' < "$PROC/$1/cmdline" | head -n 1)" = "${2:-$GAME}" ]; }
 unmount_trust(){
     [ -f "$STATE/mount_pid" ] && [ -f "$STATE/mount_ns" ] && [ -f "$STATE/mount_targets" ] || return 0
     IFS= read -r target_pid < "$STATE/mount_pid"
     IFS= read -r expected_ns < "$STATE/mount_ns"
+    mounted_package=$DEFAULT_GAME
+    if [ -f "$STATE/mount_package" ]; then IFS= read -r mounted_package < "$STATE/mount_package"; fi
+    valid_package "$mounted_package" || { printf 'mounted_package_invalid\n'; return 1; }
     unmount_failed=0
-    if valid_pid "$target_pid" && game_process "$target_pid" && [ "$(readlink "$PROC/$target_pid/ns/mnt")" = "$expected_ns" ]; then
+    if valid_pid "$target_pid" && game_process "$target_pid" "$mounted_package" && [ "$(readlink "$PROC/$target_pid/ns/mnt")" = "$expected_ns" ]; then
         while IFS= read -r target; do
             case "$target" in /apex/com.android.conscrypt/cacerts|/system/etc/security/cacerts)
                 if awk -v target="$target" '$5==target && $4 ~ /minifire_compat_zygisk\/state\/trust/ {found=1} END {exit !found}' "$PROC/$target_pid/mountinfo"; then
@@ -23,7 +28,7 @@ unmount_trust(){
         done < "$STATE/mount_targets"
     fi
     [ "$unmount_failed" = 0 ] || { printf 'certificate_unmount_failed\n'; return 1; }
-    rm -f "$STATE/mount_pid" "$STATE/mount_ns" "$STATE/mount_targets"
+    rm -f "$STATE/mount_pid" "$STATE/mount_ns" "$STATE/mount_targets" "$STATE/mount_package"
 }
 case "$1" in
     prepare)
@@ -67,6 +72,7 @@ case "$1" in
         "$NSENTER" -t "$2" -m -- mount --make-rprivate / 2> "$STATE/trust-error.txt" || fail target_mount_propagation_failed
         printf '%s\n' "$2" > "$STATE/mount_pid"
         printf '%s\n' "$namespace" > "$STATE/mount_ns"
+        printf '%s\n' "$GAME" > "$STATE/mount_package"
         : > "$STATE/mount_targets"
         source="$PROC/$$/root$STATE/trust"
         mounted=0

@@ -4,6 +4,8 @@ fixture=$(mktemp -d)
 case "$fixture" in */tmp.*) ;; *) exit 1;; esac
 trap 'rm -f "$fixture/game_enabled" "$fixture/bin/minifire-external" "$fixture/keep"; rmdir "$fixture/bin" "$fixture" 2>/dev/null || :' EXIT
 mkdir -p "$fixture/zygisk" "$fixture/lib/arm64-v8a" "$fixture/bin"
+cp external-root/config.sh "$fixture/config.sh"
+trap 'rm -f "$fixture/config.sh" "$fixture/target_package" "$fixture/game_enabled" "$fixture/bin/minifire-external" "$fixture/keep"; rmdir "$fixture/bin" "$fixture" 2>/dev/null || :' EXIT
 printf old > "$fixture/zygisk/arm64-v8a.so"
 printf old > "$fixture/lib/arm64-v8a/libminifire_core.so"
 printf fixture > "$fixture/bin/minifire-external"

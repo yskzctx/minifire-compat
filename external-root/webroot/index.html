@@ -1,17 +1,22 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>迷枪苹果区兼容</title><style>
 :root{font-family:system-ui,sans-serif;color:#edf3ff;background:#0d1424}*{box-sizing:border-box}body{margin:0;padding:28px 18px;background:radial-gradient(circle at 100% 0,#234576,#0d1424 52%);min-height:100vh}main{max-width:650px;margin:auto}.eyebrow{color:#9abfff;font-size:12px;letter-spacing:.12em}h1{font-size:26px;margin:8px 0 18px}h2{font-size:17px;margin:0}p{color:#b4c3db;line-height:1.7}.card{background:#182338;border:1px solid #354762;border-radius:20px;padding:20px;margin:16px 0}.row{display:flex;justify-content:space-between;align-items:center;gap:20px}.switch{position:relative;width:56px;height:32px;flex:none}.switch input{opacity:0;width:100%;height:100%;margin:0}.track{position:absolute;inset:0;border-radius:20px;background:#4b5b72;pointer-events:none}.track:before{content:"";position:absolute;left:4px;top:4px;width:24px;height:24px;border-radius:50%;background:white;transition:.2s}.switch input:checked+.track{background:#559efc}.switch input:checked+.track:before{transform:translateX(24px)}.switch input:disabled+.track{opacity:.4}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}button{background:#294c78;color:#f2f7ff;border:1px solid #5b87be;border-radius:11px;padding:10px 14px;font:inherit}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1323;border-radius:12px;border:1px solid #2e435f;padding:14px;font:12px/1.6 monospace;max-height:52vh;overflow:auto;min-height:100px}#status{margin:14px 0 0;color:#a9d3ff}#notice{font-size:13px;overflow-wrap:anywhere;color:#bdd7ff}.sub{font-size:13px;color:#a4b7d1;margin-top:6px}
-</style></head><body><main><div class="eyebrow">进程外 · 1.0.1 试装版</div><h1>迷枪苹果区兼容</h1><section class="card"><div class="row"><div><h2>账号兼容</h2><div class="sub">独立转发服务 · 无需 LSPosed 作用域</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="账号兼容"><span class="track"></span></label></div><p id="status">正在读取状态…</p></section><section class="card"><h2>诊断记录</h2><p>关键步骤直接保存到模块文件中，不会被系统日志覆盖。导出文件位于手机 Download 文件夹。</p><div class="toolbar"><button id="refresh">刷新诊断</button><button id="copy">复制</button><button id="export">导出到下载</button></div><div id="notice" role="status"></div><pre id="logs">点击刷新读取诊断。</pre></section><p class="sub">首次覆盖安装后请重启。开启后等待“已准备”，再彻底退出并打开游戏。若自动关闭，诊断会保留具体失败原因。</p></main><script>
+input#filter,select#target{display:block;width:100%;padding:12px;margin-top:12px;border:1px solid #435d80;border-radius:10px;background:#0b1323;color:#edf3ff;font:14px system-ui;}
+</style></head><body><main><div class="eyebrow">进程外 · 1.0.2 试装版</div><h1>迷枪苹果区兼容</h1><section class="card"><h2>目标应用</h2><p class="sub">按包名选择已安装的客户端。切换会先关闭兼容；各渠道仍需通过客户端与登录协议检查。</p><input id="filter" placeholder="输入包名筛选" aria-label="筛选应用"><select id="target" disabled aria-label="目标应用"></select><div class="toolbar"><button id="apps">刷新应用列表</button><button id="save-target" disabled>保存目标</button></div></section><section class="card"><div class="row"><div><h2>账号兼容</h2><div class="sub">独立转发服务 · 无需 LSPosed 作用域</div></div><label class="switch"><input id="game" type="checkbox" disabled aria-label="账号兼容"><span class="track"></span></label></div><p id="status">正在读取状态…</p></section><section class="card"><h2>诊断记录</h2><p>关键步骤直接保存到模块文件中，不会被系统日志覆盖。导出文件位于手机 Download 文件夹。</p><div class="toolbar"><button id="refresh">刷新诊断</button><button id="copy">复制</button><button id="export">导出到下载</button></div><div id="notice" role="status"></div><pre id="logs">点击刷新读取诊断。</pre></section><p class="sub">首次覆盖安装后请重启。开启后等待“已准备”，再彻底退出并打开游戏。若自动关闭，诊断会保留具体失败原因。</p></main><script>
 'use strict';
 const moduleId='minifire_compat_zygisk';
 const game=document.getElementById('game'),status=document.getElementById('status'),notice=document.getElementById('notice'),logs=document.getElementById('logs');
+const target=document.getElementById('target'),filter=document.getElementById('filter');
+let currentTarget='com.miniworldroyale.sparkgame',installedApps=[];
 let busy=false;
 const stages={disabled:'兼容已关闭',reboot_required:'请先重启手机，让进程外服务接管',preparing_client:'正在核对客户端并准备本地材料',waiting_game:'已准备，等待打开游戏',preparing_game_namespace:'正在准备游戏的独立证书环境',running:'转发服务运行中；请以实际进入的角色核对效果',game_uid_unavailable:'无法读取游戏 UID，已自动关闭',game_apk_unavailable:'无法读取已安装游戏，已自动关闭',client_prepare_failed:'客户端准备失败，已自动关闭；请刷新诊断',certificate_prepare_failed:'证书准备失败，已自动关闭；请刷新诊断',certificate_mount_failed:'游戏证书环境准备失败，已自动关闭；请刷新诊断',proxy_start_failed:'转发程序启动失败，已自动关闭；请刷新诊断',client_certificate_rejected:'游戏拒绝本地证书，已自动关闭并恢复路由',proxy_process_stopped:'转发进程已退出，已自动关闭并恢复路由'};
 stages.original_destination_unavailable='无法读取原始连接目的地址，已自动关闭并恢复路由';
 Object.assign(stages,{
+ target_config_invalid:'目标应用配置无效，已关闭；请重新选择',client_not_supported:'所选渠道或版本尚未适配，已自动关闭；请查看诊断',
+ locating_game_files:'正在直接读取本地安装信息（无需包管理服务，最多 15 秒）',package_lookup_timeout:'安装信息查询超过时限，已自动关闭；请刷新诊断',
  locating_game:'正在读取游戏安装位置（最多 15 秒）',locating_game_uid:'正在读取游戏 UID（最多 15 秒）',
  reading_apk_binary:'正在读取 APK 原生库',reading_apk_metadata:'正在读取 APK 元数据',verifying_client_binary:'正在校验客户端版本与文件指纹',
  preparing_local_certificate:'正在准备本地证书',saving_local_material:'正在保存本地材料',preparing_trust_store:'正在准备游戏证书目录（最多 30 秒）',
- client_prepare_timeout:'材料准备超过时限，已自动关闭；请刷新诊断',package_lookup_failed:'读取安装信息失败或超时，已自动关闭',
+ client_prepare_timeout:'材料准备超过时限，已自动关闭；请刷新诊断',package_lookup_failed:'本地安装读取与包服务查询均未成功，已自动关闭；请刷新诊断',
  cleanup_failed:'关闭标志已保存，但清理失败；请刷新诊断，勿立即重新开启',routing_reset_failed:'大厅路由重置失败，已自动关闭；请刷新诊断'
 });
 function directory(){
@@ -30,9 +35,30 @@ function run(argument){
 }
 function readStatus(){
  if(busy)return;
- try{const text=run('status');const flag=/^game=([01])\s*$/m.exec(text);const stage=/^stage=([a-z0-9_]+)\s*$/m.exec(text);if(!flag)throw Error(text||'配置为空');game.checked=flag[1]==='1';game.disabled=false;status.textContent=stages[stage?stage[1]:'reboot_required']||(stage?stage[1]:'状态未知');}
+ try{const text=run('status');const flag=/^game=([01])\s*$/m.exec(text);const stage=/^stage=([a-z0-9_]+)\s*$/m.exec(text);const saved=/^target=([A-Za-z0-9_.]+)\s*$/m.exec(text);if(!flag)throw Error(text||'配置为空');if(saved)currentTarget=saved[1];game.checked=flag[1]==='1';game.disabled=false;status.textContent=stages[stage?stage[1]:'reboot_required']||(stage?stage[1]:'状态未知');}
  catch(error){game.disabled=true;status.textContent='读取失败：'+error;}
 }
+function renderApps(){
+ const needle=filter.value.toLowerCase().trim();
+ const rows=installedApps.filter(app=>app.package.toLowerCase().includes(needle));
+ if(!rows.some(app=>app.package===currentTarget))rows.unshift({package:currentTarget});
+ target.replaceChildren(...rows.map(app=>{const option=document.createElement('option');option.value=app.package;option.textContent=app.package+(app.uid?' · UID '+app.uid:'');return option;}));
+ target.value=currentTarget;target.disabled=false;document.getElementById('save-target').disabled=false;
+}
+function loadApps(){
+ try{const parsed=JSON.parse(run('apps'));if(!Array.isArray(parsed))throw Error('应用列表格式不符');installedApps=parsed.filter(app=>typeof app.package==='string'&&/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(app.package));renderApps();}
+ catch(error){notice.textContent='应用列表读取失败：'+error;}
+}
+filter.addEventListener('input',renderApps);
+document.getElementById('apps').addEventListener('click',loadApps);
+document.getElementById('save-target').addEventListener('click',()=>{
+ const selected=target.value;
+ if(!/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(selected)||selected.length>255){notice.textContent='包名格式无效';return;}
+ busy=true;game.disabled=true;
+ try{if(run('target '+selected).trim()!==selected)throw Error('保存未确认');currentTarget=selected;notice.textContent='目标已保存，兼容已关闭。重新开启后会检查该客户端是否受支持。';}
+ catch(error){notice.textContent='目标保存失败：'+error;}
+ finally{busy=false;readStatus();}
+});
 game.addEventListener('change',()=>{
  busy=true;game.disabled=true;
  try{const wanted=game.checked?'1':'0';if(run('game '+wanted).trim()!==wanted)throw Error('写入读回不一致');notice.textContent='设置已保存，正在等待服务更新状态。';}catch(error){notice.textContent='保存失败：'+error;}
@@ -45,5 +71,5 @@ document.getElementById('copy').addEventListener('click',()=>{
  if(typeof navigator!=='undefined'&&navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>notice.textContent='诊断已复制',error=>notice.textContent='复制失败：'+error);return;}
  try{const field=document.createElement('textarea');field.value=text;field.style.position='fixed';field.style.opacity='0';document.body.appendChild(field);field.select();const ok=document.execCommand('copy');field.remove();notice.textContent=ok?'诊断已复制':'请长按诊断文本复制';}catch(error){notice.textContent='复制失败：'+error;}
 });
-readStatus();setInterval(readStatus,3000);
+readStatus();loadApps();setInterval(readStatus,3000);
 </script></body></html>

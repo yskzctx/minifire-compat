@@ -15,7 +15,7 @@ for index in range(count):
     at=offset+index*entry_size
     if struct.unpack_from('<I',data,at)[0]==1:
         assert struct.unpack_from('<Q',data,at+48)[0]>=16384,'16KB page compatibility required'
-names=['module.prop','game_enabled','customize.sh','service.sh','controller.sh','control.sh','route.sh','trust.sh','uninstall.sh','webroot/index.html','README.md','LICENSE-Go.txt','LICENSE-APACHE-2.0.txt']
+names=['module.prop','game_enabled','target_package','config.sh','customize.sh','service.sh','controller.sh','control.sh','route.sh','trust.sh','uninstall.sh','webroot/index.html','README.md','LICENSE-Go.txt','LICENSE-APACHE-2.0.txt']
 files=[(name,root/name) for name in names]+[('bin/minifire-external',binary)]
 out=Path(sys.argv[1]).resolve();out.parent.mkdir(parents=True,exist_ok=True)
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as archive:

@@ -1,8 +1,21 @@
 #!/system/bin/sh
 MODDIR=${0%/*}
 STATE="$MODDIR/state"
+. "$MODDIR/config.sh" || exit 1
+read_target || GAME=$DEFAULT_GAME
 case "$1" in
+    apps) "$MODDIR/bin/minifire-external" apps;;
+    target)
+        valid_package "$2" || exit 2
+        mkdir -p "$STATE" && chmod 0700 "$STATE" || exit 1
+        selected=$("$MODDIR/bin/minifire-external" target --package "$2" 2> "$STATE/target-error.txt") || { cat "$STATE/target-error.txt"; exit 1; }
+        [ "$selected" = "$2" ] || exit 1
+        sh "$MODDIR/controller.sh" stop || exit 1
+        printf '%s\n' "$selected" > "$MODDIR/target_package.tmp" && chmod 0600 "$MODDIR/target_package.tmp" && mv -f "$MODDIR/target_package.tmp" "$MODDIR/target_package" || exit 1
+        printf '%s\n' "$selected"
+        ;;
     status)
+        printf 'target=%s\n' "$GAME"
         printf 'game='; cat "$MODDIR/game_enabled"
         printf 'stage='; if [ -f "$STATE/status" ]; then cat "$STATE/status"; else printf 'reboot_required\n'; fi
         ;;
@@ -19,7 +32,7 @@ case "$1" in
         ;;
     logs)
         printf '[module status]\n'; sh "$MODDIR/control.sh" status
-        for file in controller-error.txt cleanup.txt package-path.txt package-uid.txt prepare-progress prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt; do
+        for file in target-error.txt controller-error.txt cleanup.txt package-files.txt package-path.txt package-uid.txt prepare-progress prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt; do
             if [ -s "$STATE/$file" ]; then printf '\n[%s]\n' "$file"; tail -n 20 "$STATE/$file"; fi
         done
         for file in controller.jsonl events.jsonl; do
@@ -33,8 +46,8 @@ case "$1" in
             printf 'Minifire external diagnostics\n'; date '+%Y-%m-%d %H:%M:%S %z'
             printf '\n[module]\n'; cat "$MODDIR/module.prop"
             printf '\n[status]\n'; sh "$MODDIR/control.sh" status
-            printf '\n[game package]\n'; dumpsys package com.miniworldroyale.sparkgame | sed -n '/versionName=/p'
-            for file in controller-error.txt cleanup.txt package-path.txt package-uid.txt prepare-progress prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt controller.jsonl.1 controller.jsonl events.jsonl.1 events.jsonl; do
+            printf '\n[selected package]\n%s\n' "$GAME"
+            for file in target-error.txt controller-error.txt cleanup.txt package-files.txt package-path.txt package-uid.txt prepare-progress prepare.txt trust-prepare.txt trust-mount.txt trust-error.txt route-error.txt daemon.txt controller.jsonl.1 controller.jsonl events.jsonl.1 events.jsonl; do
                 if [ -f "$STATE/$file" ]; then printf '\n[%s]\n' "$file"; cat "$STATE/$file"; fi
             done
         } > "$OUT" 2>&1

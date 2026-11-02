@@ -2,7 +2,9 @@
 MODDIR=${0%/*}
 STATE="$MODDIR/state"
 BIN="$MODDIR/bin/minifire-external"
-GAME=com.miniworldroyale.sparkgame
+. "$MODDIR/config.sh" || exit 1
+target_config_valid=1
+read_target || target_config_valid=0
 PREPARE_TIMEOUT=${MINIFIRE_PREPARE_TIMEOUT:-90}
 case "$PREPARE_TIMEOUT" in ''|*[!0-9]*) PREPARE_TIMEOUT=90;; esac
 [ "$PREPARE_TIMEOUT" -ge 1 ] && [ "$PREPARE_TIMEOUT" -le 300 ] || PREPARE_TIMEOUT=90
@@ -11,7 +13,8 @@ status(){
     stage=$1
     if [ -f "$STATE/controller.jsonl" ] && [ "$(wc -c < "$STATE/controller.jsonl")" -gt 262144 ]; then mv -f "$STATE/controller.jsonl" "$STATE/controller.jsonl.1"; fi
     printf '%s\n' "$stage" > "$STATE/status"
-    printf '{"time":"%s","stage":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$stage" >> "$STATE/controller.jsonl"
+    log_target=$GAME; valid_package "$log_target" || log_target=invalid
+    printf '{"time":"%s","stage":"%s","target":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$stage" "$log_target" >> "$STATE/controller.jsonl"
 }
 ours(){
     case "$1" in ''|*[!0-9]*) return 1;; esac
@@ -127,6 +130,7 @@ active_pid=''
 if ! stop_proxy; then printf '0\n' > "$MODDIR/game_enabled"; status cleanup_failed; exit 1; fi
 status disabled
 fail_run(){ printf '0\n' > "$MODDIR/game_enabled"; prepared=0; if stop_proxy; then status "$1"; else status cleanup_failed; fi; }
+if [ "$target_config_valid" != 1 ]; then fail_run target_config_invalid; exit 1; fi
 while [ ! -f "$MODDIR/disable" ] && [ ! -f "$MODDIR/remove" ]; do
     enabled=$(cat "$MODDIR/game_enabled" 2>/dev/null)
     if [ "$enabled" != 1 ]; then
@@ -135,21 +139,37 @@ while [ ! -f "$MODDIR/disable" ] && [ ! -f "$MODDIR/remove" ]; do
         break
     fi
     if [ "$prepared" != 1 ]; then
-        bounded_step 15 locating_game "$STATE/package-path.txt" pm path "$GAME"; step_code=$?
+        # These files describe the current lookup attempt, not a stale fallback.
+        rm -f "$STATE/package-files.txt" "$STATE/package-path.txt" "$STATE/package-uid.txt"
+        bounded_step 15 locating_game_files "$STATE/package-files.txt" "$BIN" locate --package "$GAME"; step_code=$?
         if [ "$step_code" = 125 ]; then status disabled; break; fi
-        [ "$step_code" = 0 ] || { fail_run package_lookup_failed; continue; }
-        bounded_step 15 locating_game_uid "$STATE/package-uid.txt" cmd package list packages -U "$GAME"; step_code=$?
-        if [ "$step_code" = 125 ]; then status disabled; break; fi
-        [ "$step_code" = 0 ] || { fail_run package_lookup_failed; continue; }
-        apk=$(sed -n 's/^package://p' "$STATE/package-path.txt" | head -n 1)
-        uid=$(sed -n 's/^package:com\.miniworldroyale\.sparkgame uid:\([0-9][0-9]*\)$/\1/p' "$STATE/package-uid.txt")
+        apk=''; uid=''
+        if [ "$step_code" = 0 ]; then
+            apk=$(sed -n 's/^apk=//p' "$STATE/package-files.txt")
+            uid=$(sed -n 's/^uid=\([0-9][0-9]*\)$/\1/p' "$STATE/package-files.txt")
+        fi
+        if [ -z "$apk" ] || [ -z "$uid" ]; then
+            bounded_step 15 locating_game "$STATE/package-path.txt" pm path "$GAME"; step_code=$?
+            if [ "$step_code" = 125 ]; then status disabled; break; fi
+            if [ "$step_code" = 124 ]; then fail_run package_lookup_timeout; continue; fi
+            [ "$step_code" = 0 ] || { fail_run package_lookup_failed; continue; }
+            bounded_step 15 locating_game_uid "$STATE/package-uid.txt" cmd package list packages -U "$GAME"; step_code=$?
+            if [ "$step_code" = 125 ]; then status disabled; break; fi
+            if [ "$step_code" = 124 ]; then fail_run package_lookup_timeout; continue; fi
+            [ "$step_code" = 0 ] || { fail_run package_lookup_failed; continue; }
+            apk=$(sed -n 's/^package://p' "$STATE/package-path.txt" | head -n 1)
+            uid=$(awk -v expected="package:$GAME" '$1==expected && $2 ~ /^uid:[0-9]+$/ {sub(/^uid:/,"",$2);print $2}' "$STATE/package-uid.txt")
+        fi
         case "$uid" in ''|*[!0-9]*) fail_run game_uid_unavailable; continue;; esac
         [ "$uid" -ge 10000 ] && [ -r "$apk" ] || { fail_run game_apk_unavailable; continue; }
         rm -f "$STATE/prepare-progress"
         bounded_step "$PREPARE_TIMEOUT" preparing_client "$STATE/prepare.txt" "$BIN" prepare --apk "$apk" --state "$STATE"; step_code=$?
         if [ "$step_code" = 125 ]; then status disabled; break; fi
         if [ "$step_code" = 124 ]; then fail_run client_prepare_timeout; continue; fi
-        [ "$step_code" = 0 ] || { fail_run client_prepare_failed; continue; }
+        if [ "$step_code" != 0 ]; then
+            if grep -Eq '^(client_binary_unrecognized|apk_entry_missing|material_fingerprint_mismatch)$' "$STATE/prepare.txt"; then fail_run client_not_supported; else fail_run client_prepare_failed; fi
+            continue
+        fi
         bounded_step 30 preparing_trust_store "$STATE/trust-prepare.txt" sh "$MODDIR/trust.sh" prepare; step_code=$?
         if [ "$step_code" = 125 ]; then status disabled; break; fi
         [ "$step_code" = 0 ] || { fail_run certificate_prepare_failed; continue; }
@@ -168,6 +188,7 @@ while [ ! -f "$MODDIR/disable" ] && [ ! -f "$MODDIR/remove" ]; do
         rm -f "$STATE/ready" "$STATE/fatal"
         "$BIN" --material-file "$STATE/material" --cert "$STATE/server.pem" --key "$STATE/server.key" \
             --journal "$STATE/events.jsonl" --route-script "$MODDIR/route.sh" --game-uid "$uid" \
+            --target-package "$GAME" \
             --ready-file "$STATE/ready" --fatal-file "$STATE/fatal" > "$STATE/daemon.txt" 2>&1 &
         proxy_pid=$!
         printf '%s\n' "$proxy_pid" > "$STATE/proxy.pid"

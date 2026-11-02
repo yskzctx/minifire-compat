@@ -4,7 +4,9 @@ fixture=$(mktemp -d)
 case "$fixture" in */tmp.*) ;; *) exit 1;; esac
 cleanup(){ rm -f "$fixture/trust.sh" "$fixture/nsenter" "$fixture/readlink" "$fixture/calls" "$fixture/proc/1/ns/mnt" "$fixture/proc/123/ns/mnt" "$fixture/proc/123/cmdline" "$fixture/proc/123/mountinfo" "$fixture/state/trust_ready" "$fixture/state/trust-error.txt" "$fixture/state/mount_pid" "$fixture/state/mount_ns" "$fixture/state/mount_targets"; rmdir "$fixture/state" "$fixture/proc/1/ns" "$fixture/proc/1" "$fixture/proc/123/ns" "$fixture/proc/123" "$fixture/proc" "$fixture" 2>/dev/null || :; }
 trap cleanup EXIT
+trap 'rm -f "$fixture/config.sh" "$fixture/target_package" "$fixture/state/mount_package"; cleanup' EXIT
 cp external-root/trust.sh "$fixture/trust.sh"
+cp external-root/config.sh "$fixture/config.sh"
 mkdir -p "$fixture/proc/1/ns" "$fixture/proc/123/ns"
 printf 'mnt:[100]\n' > "$fixture/proc/1/ns/mnt"
 printf 'mnt:[100]\n' > "$fixture/proc/123/ns/mnt"
@@ -22,6 +24,13 @@ if output=$(sh "$fixture/trust.sh" mount 123); then exit 1; fi
 [ "$output" = shared_mount_namespace ]
 [ ! -f "$fixture/calls" ]
 echo 'shared game namespace is rejected before any mount operation'
+printf 'com.example.minifire.channel\n' > "$fixture/target_package"
+printf 'com.example.minifire.channel\0' > "$fixture/proc/123/cmdline"
+if output=$(sh "$fixture/trust.sh" mount 123); then exit 1; fi
+[ "$output" = shared_mount_namespace ]
+rm -f "$fixture/target_package"
+printf 'com.miniworldroyale.sparkgame\0' > "$fixture/proc/123/cmdline"
+echo 'selected package is used for process identity checks'
 mkdir "$fixture/state"
 touch "$fixture/state/trust_ready"
 printf 'mnt:[200]\n' > "$fixture/proc/123/ns/mnt"

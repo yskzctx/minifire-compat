@@ -3,23 +3,38 @@ set -eu
 fixture=$(mktemp -d)
 case "$fixture" in */tmp.*) ;; *) exit 1;; esac
 cleanup(){
+ rm -f "$fixture/config.sh" "$fixture/target_package"
  [ -z "${controller_pid:-}" ] || kill "$controller_pid" 2>/dev/null || :
- rm -f "$fixture/controller.sh" "$fixture/route.sh" "$fixture/trust.sh" "$fixture/game_enabled" "$fixture/game.apk" "$fixture/calls" "$fixture/bin/minifire-external" "$fixture/tools/pm" "$fixture/tools/cmd" "$fixture/state/status" "$fixture/state/controller.jsonl" "$fixture/state/prepare.txt" "$fixture/state/prepare-progress" "$fixture/state/worker.pid" "$fixture/state/cleanup.txt" "$fixture/state/package-path.txt" "$fixture/state/package-uid.txt" "$fixture/state/controller.lock/pid"
+ rm -f "$fixture/controller.sh" "$fixture/route.sh" "$fixture/trust.sh" "$fixture/game_enabled" "$fixture/game.apk" "$fixture/calls" "$fixture/bin/minifire-external" "$fixture/tools/pm" "$fixture/tools/cmd" "$fixture/state/status" "$fixture/state/controller.jsonl" "$fixture/state/prepare.txt" "$fixture/state/prepare-progress" "$fixture/state/worker.pid" "$fixture/state/cleanup.txt" "$fixture/state/package-files.txt" "$fixture/state/package-path.txt" "$fixture/state/package-uid.txt" "$fixture/state/controller.lock/pid"
  rmdir "$fixture/state/controller.lock" "$fixture/bin" "$fixture/tools" "$fixture/state" "$fixture" 2>/dev/null || :
 }
 trap cleanup EXIT
 mkdir "$fixture/bin" "$fixture/tools"
 cp external-root/controller.sh "$fixture/controller.sh"
+cp external-root/config.sh "$fixture/config.sh"
 printf '#!/bin/sh\nprintf "route %%s\\n" "$*" >> "$CALLS"\n' > "$fixture/route.sh"
 printf '#!/bin/sh\nprintf "trust %%s\\n" "$*" >> "$CALLS"\n' > "$fixture/trust.sh"
 cat > "$fixture/bin/minifire-external" <<'SH'
 #!/bin/sh
+if [ "$1" = locate ]; then
+ if [ "${FIXTURE_LOCATE_FAIL:-0}" = 1 ]; then printf 'installed_apk_ambiguous\n'; exit 1; fi
+ printf 'apk=%s\nuid=10240\nsource=fixture\n' "$TEST_APK"; exit 0
+fi
 printf 'prepare\n' >> "$CALLS"
 printf 'client_binary_unrecognized\n'
 exit 1
 SH
-printf '#!/bin/sh\nprintf "package:%%s\\n" "$TEST_APK"\n' > "$fixture/tools/pm"
-printf '#!/bin/sh\nprintf "package:com.miniworldroyale.sparkgame uid:10240\\n"\n' > "$fixture/tools/cmd"
+cat > "$fixture/tools/pm" <<'SH'
+#!/bin/sh
+printf 'binder_invoked\n' >> "$CALLS"
+if [ "${FIXTURE_BINDER_OK:-0}" = 1 ]; then
+ case "$0" in */pm) printf 'package:%s\n' "$TEST_APK";; *) printf 'package:com.miniworldroyale.sparkgame uid:10240\n';; esac
+ exit 0
+fi
+printf 'cmd: Failure calling service package: Failed transaction (2147483646)\n' >&2
+exit 1
+SH
+cp "$fixture/tools/pm" "$fixture/tools/cmd"
 chmod +x "$fixture/bin/minifire-external" "$fixture/tools/pm" "$fixture/tools/cmd"
 touch "$fixture/game.apk"
 export CALLS="$fixture/calls" TEST_APK="$fixture/game.apk"
@@ -31,12 +46,27 @@ if grep -q '^prepare$' "$CALLS"; then exit 1; fi
 printf '1\n' > "$fixture/game_enabled"
 timeout 5 sh "$fixture/controller.sh"
 [ "$(cat "$fixture/game_enabled")" = 0 ]
-[ "$(cat "$fixture/state/status")" = client_prepare_failed ]
+[ "$(cat "$fixture/state/status")" = client_not_supported ]
 grep -q client_binary_unrecognized "$fixture/state/prepare.txt"
+if grep -q binder_invoked "$CALLS"; then echo 'unnecessary broken Binder lookup' >&2; exit 1; fi
 if grep -q '^trust mount\|^route init' "$CALLS"; then exit 1; fi
 echo 'disabled controller exits and unknown client stops before certificate mounts or routing'
+export FIXTURE_LOCATE_FAIL=1 FIXTURE_BINDER_OK=1
+printf '1\n' > "$fixture/game_enabled"
+timeout 5 sh "$fixture/controller.sh"
+[ "$(cat "$fixture/state/status")" = client_not_supported ]
+grep -q binder_invoked "$CALLS"
+unset FIXTURE_BINDER_OK
+printf '1\n' > "$fixture/game_enabled"
+timeout 5 sh "$fixture/controller.sh"
+[ "$(cat "$fixture/state/status")" = package_lookup_failed ]
+grep -q installed_apk_ambiguous "$fixture/state/package-files.txt"
+grep -q 'Failed transaction' "$fixture/state/package-path.txt"
+unset FIXTURE_LOCATE_FAIL
+echo 'Binder is only a fallback and both lookup failures remain in diagnostics'
 cat > "$fixture/bin/minifire-external" <<'SH'
 #!/bin/sh
+if [ "$1" = locate ]; then printf 'apk=%s\nuid=10240\nsource=fixture\n' "$TEST_APK"; exit 0; fi
 printf 'blocked_prepare\n' >> "$CALLS"
 exec sleep 30
 SH
