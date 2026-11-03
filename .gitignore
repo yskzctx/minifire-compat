@@ -25,3 +25,8 @@ dist/
 .env.*
 private/
 device-data/
+
+# Retired experiments removed from the repository; local deletion is blocked.
+/external-root/
+/zygisk-root/
+/proxy_offline/

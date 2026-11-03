@@ -1,0 +1,42 @@
+[
+  {
+    "tag": "v0.4.1",
+    "url": "https://github.com/yskzctx/minifire-compat/releases/tag/v0.4.1",
+    "prerelease": false,
+    "asset": "Minifire-Compat-0.4.1.apk",
+    "download_url": "https://github.com/yskzctx/minifire-compat/releases/download/v0.4.1/Minifire-Compat-0.4.1.apk",
+    "sha256": "9b2b14b4bcda73ce17e8ff5020f5cf4a5039ad867a2c605db0808bed9db5ae86",
+    "local_bytes": 418870,
+    "anonymous_download_verified": true
+  },
+  {
+    "tag": "v0.4.2",
+    "url": "https://github.com/yskzctx/minifire-compat/releases/tag/v0.4.2",
+    "prerelease": true,
+    "asset": "Minifire-Compat-0.4.2.apk",
+    "download_url": "https://github.com/yskzctx/minifire-compat/releases/download/v0.4.2/Minifire-Compat-0.4.2.apk",
+    "sha256": "8aca8d036ebc84039208e69ba0d2f7cc9a99a239e034c18f2dfb154e50a255ae",
+    "local_bytes": 418870,
+    "anonymous_download_verified": true
+  },
+  {
+    "tag": "v2.0.1-minimal-pre.1",
+    "url": "https://github.com/yskzctx/minifire-compat/releases/tag/v2.0.1-minimal-pre.1",
+    "prerelease": false,
+    "asset": "Minifire-Minimal-Hook-2.0.1-candidate.zip",
+    "download_url": "https://github.com/yskzctx/minifire-compat/releases/download/v2.0.1-minimal-pre.1/Minifire-Minimal-Hook-2.0.1-candidate.zip",
+    "sha256": "51382311c68c344f8f0dba0689948e9b26a2c1ff2af7a38a8575eea666a6ad2e",
+    "local_bytes": 99581,
+    "anonymous_download_verified": true
+  },
+  {
+    "tag": "v2.1.0-fixed-pre.1",
+    "url": "https://github.com/yskzctx/minifire-compat/releases/tag/v2.1.0-fixed-pre.1",
+    "prerelease": false,
+    "asset": "Minifire-Fixed-Trampoline-2.1.0-candidate.zip",
+    "download_url": "https://github.com/yskzctx/minifire-compat/releases/download/v2.1.0-fixed-pre.1/Minifire-Fixed-Trampoline-2.1.0-candidate.zip",
+    "sha256": "fc323153fbaab8e889cf54b7c6667f498e7cf8d8bff44439f399ee1b5318ce1a",
+    "local_bytes": 94224,
+    "anonymous_download_verified": true
+  }
+]
