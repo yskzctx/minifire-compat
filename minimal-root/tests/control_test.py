@@ -29,6 +29,14 @@ class ControlTests(unittest.TestCase):
         for bad in ['com.invalid.game','com.game;id','../bad']:
             self.assertNotEqual(self.call('target',bad).returncode,0)
         self.assertEqual((self.dir/'target_package').read_text().strip(),'com.example.channel')
+    def test_reading_apps_status_and_logs_never_changes_target_or_switch(self):
+        self.assertEqual(self.call('game','1').returncode,0)
+        paths=[self.dir/'target_package',self.dir/'game_enabled']
+        before=[(p.read_bytes(),p.stat().st_mtime_ns,p.stat().st_ino) for p in paths]
+        for command in ['apps','status','logs','apps','status']:
+            result=self.call(command)
+            self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(before,[(p.read_bytes(),p.stat().st_mtime_ns,p.stat().st_ino) for p in paths])
     def test_apps_and_persistent_logs(self):
         self.assertEqual(len(json.loads(self.call('apps').stdout)),2)
         (self.dir/'state/hooks.jsonl').write_text('{"pid":16585,"stage":"terminal_login_rewritten"}\n')
