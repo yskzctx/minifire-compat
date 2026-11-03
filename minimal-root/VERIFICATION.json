@@ -69,5 +69,7 @@
   "reboot_verified_this_version": false,
   "cleanup_preserved_original_zip": true,
   "settings_persistence_verified": false,
-  "settings_reset_user_report": "2026-11-03 user confirms reset after background removal already exists in 2.0.1; original LSP reportedly did not show it"
+  "settings_reset_user_report": "2026-11-03 user confirms reset after background removal already exists in 2.0.1; original LSP reportedly did not show it",
+  "settings_reset_followup": "2026-11-03 user reports game appears normal after uninstalling and reinstalling the game; no runtime fix was made in this investigation; current installed module version and full lifecycle persistence not independently verified",
+  "settings_reset_investigation_status": "paused_after_user_reported_recovery"
 }
