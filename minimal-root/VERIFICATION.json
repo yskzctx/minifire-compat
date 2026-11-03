@@ -67,5 +67,7 @@
   "device_verification_source": "User report on 2026-11-02: 这次终于成功了; interpreted in context as Apple-role login success",
   "independently_verified_via_adb": false,
   "reboot_verified_this_version": false,
-  "cleanup_preserved_original_zip": true
+  "cleanup_preserved_original_zip": true,
+  "settings_persistence_verified": false,
+  "settings_reset_user_report": "2026-11-03 user confirms reset after background removal already exists in 2.0.1; original LSP reportedly did not show it"
 }

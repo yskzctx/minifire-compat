@@ -1,6 +1,8 @@
 # 迷枪苹果区兼容
 
-当前推荐保留 **Root 单入口 Hook 2.0.1**。2026-11-02 用户明确反馈“这次终于成功了”，本轮上下文为安卓登录苹果角色成功；没有追加确认本版对局或重启测试。
+**已知问题：用户反馈 Root 模块清后台重开会重置灵敏度等设置，并确认 2.0.1 已存在，根因和修复尚待实机确认。见[设置持久化调查](docs/SETTINGS-PERSISTENCE-INVESTIGATION.md)。登录成功不等于设置持久化已验收。**
+
+当前保留 **Root 单入口 Hook 2.0.1** 作为登录成功的基线。2026-11-02 用户明确反馈“这次终于成功了”，本轮上下文为安卓登录苹果角色成功；没有追加确认本版对局或重启测试。
 
 [下载成功反馈版 2.0.1](https://github.com/yskzctx/minifire-compat/releases/download/v2.0.1-minimal-pre.1/Minifire-Minimal-Hook-2.0.1-candidate.zip) · [使用和构建](minimal-root/README.md) · [与原 LSP 比较](minimal-root/COMPARISON.md)
 
