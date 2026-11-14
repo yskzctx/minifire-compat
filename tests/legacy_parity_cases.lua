@@ -32,8 +32,8 @@ for _,message in ipairs({'md.ApiLoginRequest','md.Login','md.ApiVersionRequest',
      -- inputs supported by both versions. Normalize the legacy OUTPUT only.
      if a.Version=='1.0.78' and mode==5 and a.PhoneOs~=3 and channel~=999 and
         (message=='md.ApiLoginRequest' or message=='md.Login') and versions[1]~='1.0.76' then
-       a.Version='1.0.79'
-       if message=='md.ApiLoginRequest' then a.VersionName='1.0.79' end
+       a.Version='1.0.81'
+       if message=='md.ApiLoginRequest' then a.VersionName='1.0.81' end
      end
      same(a,b)
      -- Compare decoded wire payloads: protobuf field order is not semantic.
@@ -51,12 +51,12 @@ end
 -- New cached 1.0.79 declarations deliberately extend the accepted domain;
 -- compare against the corresponding supported legacy cache, not its rejection.
 for _,message in ipairs({'md.ApiLoginRequest','md.Login'}) do
- for _,versions in ipairs({{'1.0.79','1.0.77'},{'1.0.77','1.0.79'},{'1.0.79','1.0.79'}}) do
+for _,versions in ipairs({{'1.0.79','1.0.77'},{'1.0.77','1.0.79'},{'1.0.79','1.0.79'},{'1.0.81','1.0.77'},{'1.0.77','1.0.81'},{'1.0.81','1.0.81'}}) do
   local a={PhoneOs=1,Phone_Os=1,ChannelID=23,Version='1.0.78',VersionName='1.0.77',Token='SYNTHETIC'}
   local b=copy(a); b.Version=versions[1]; b.VersionName=versions[2]
   old(message,a,5); current(message,b,5)
-  a.Version='1.0.79'
-  if message=='md.ApiLoginRequest' then a.VersionName='1.0.79'
+  a.Version='1.0.81'
+  if message=='md.ApiLoginRequest' then a.VersionName='1.0.81'
   else a.VersionName=versions[2] end -- lobby never changes VersionName
   same(a,b)
   same(assert(pb.decode(message,pb.encode(message,a))),assert(pb.decode(message,pb.encode(message,b))))

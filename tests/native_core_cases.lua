@@ -82,24 +82,24 @@ check('repeated application remains stable', function()
     assert(data.PhoneOs==2 and data.ChannelID==888)
 end)
 check('version profile changes both terminal version fields before encoding', function()
-    local data=request(); data.VersionName='1.0.77'; apply('md.ApiLoginRequest',data,5)
+    local data=request(); data.VersionName='1.0.77'; data.PackageName='com.miniworldroyale.sparkgame'; apply('md.ApiLoginRequest',data,5)
     local decoded=assert(pb.decode('md.ApiLoginRequest',pb.encode('md.ApiLoginRequest',data)))
     assert(decoded.PhoneOs==2 and decoded.ChannelID==888)
-    assert(decoded.Version=='1.0.79' and decoded.VersionName=='1.0.79')
+    assert(decoded.Version=='1.0.81' and decoded.VersionName=='1.0.81')
     assert(decoded.OpenID=='LOCAL-FIXTURE' and decoded.OpenToken=='NOT-A-REAL-TOKEN')
 end)
 check('version profile covers the lobby and its initially absent channel', function()
     local data={Phone_Os=1,Version='1.0.77',Token='LOCAL-FIXTURE-TOKEN'}; apply('md.Login',data,5)
     local decoded=assert(pb.decode('md.Login',pb.encode('md.Login',data)))
-    assert(decoded.Phone_Os==2 and decoded.ChannelID==888 and decoded.Version=='1.0.79')
+    assert(decoded.Phone_Os==2 and decoded.ChannelID==888 and decoded.Version=='1.0.81')
     assert(decoded.Token=='LOCAL-FIXTURE-TOKEN')
 end)
 check('cached compatible versions normalize before automatic relogin', function()
     for _,versions in ipairs({{'1.0.78','1.0.77'},{'1.0.77','1.0.78'}}) do
-        local data=request(); data.ChannelID=888; data.Version=versions[1]; data.VersionName=versions[2]
+        local data=request(); data.ChannelID=888; data.Version=versions[1]; data.VersionName=versions[2]; data.PackageName='com.miniworldroyale.sparkgame'
         apply('md.ApiLoginRequest',data,5)
         local decoded=assert(pb.decode('md.ApiLoginRequest',pb.encode('md.ApiLoginRequest',data)))
-        assert(decoded.PhoneOs==2 and decoded.ChannelID==888 and decoded.Version=='1.0.79' and decoded.VersionName=='1.0.79')
+        assert(decoded.PhoneOs==2 and decoded.ChannelID==888 and decoded.Version=='1.0.81' and decoded.VersionName=='1.0.81')
         assert(decoded.OpenID=='LOCAL-FIXTURE' and decoded.OpenToken=='NOT-A-REAL-TOKEN')
     end
 end)
@@ -113,10 +113,32 @@ end)
 check('version profile rejects unexpected platform or channel without version changes', function()
     for _,changes in ipairs({{3,23},{1,999}}) do
         local data=request(); data.PhoneOs=changes[1]; data.ChannelID=changes[2]; data.VersionName='1.0.77'
+        data.PackageName='com.miniworldroyale.sparkgame'
         apply('md.ApiLoginRequest',data,5)
         assert(data.PhoneOs==changes[1] and data.ChannelID==changes[2])
-        assert(data.Version=='1.0.77' and data.VersionName=='1.0.77')
+        assert(data.Version=='1.0.77' and data.VersionName=='1.0.77' and data.PackageName=='com.miniworldroyale.sparkgame')
     end
+end)
+check('official 233 and oppo channels use the apple login profile', function()
+    local packages={
+        [23]='com.miniworldroyale.sparkgame',
+        [33]='com.miniworldroyale.sparkgame.meta',
+        [6]='com.miniworldroyale.sparkgame.nearme.gamecenter'}
+    for channel,package_name in pairs(packages) do
+        local data=request(); data.ChannelID=channel; data.VersionName='1.0.77'; data.PackageName=package_name
+        apply('md.ApiLoginRequest',data,5)
+        local decoded=assert(pb.decode('md.ApiLoginRequest',pb.encode('md.ApiLoginRequest',data)))
+        assert(decoded.PhoneOs==2 and decoded.ChannelID==888)
+        assert(decoded.Version=='1.0.81' and decoded.VersionName=='1.0.81')
+        assert(decoded.PackageName=='com.miniworldroyale.sparkgame')
+        assert(decoded.OpenID=='LOCAL-FIXTURE' and decoded.OpenToken=='NOT-A-REAL-TOKEN')
+    end
+end)
+check('unknown package name causes no partial channel change', function()
+    local data=request(); data.ChannelID=33; data.VersionName='1.0.77'; data.PackageName='com.example.other'
+    apply('md.ApiLoginRequest',data,5)
+    assert(data.PhoneOs==1 and data.ChannelID==33 and data.Version=='1.0.77')
+    assert(data.VersionName=='1.0.77' and data.PackageName=='com.example.other')
 end)
 check('resource update and other messages are unchanged by version profile', function()
     for _,name in ipairs({'md.ApiVersionRequest','md.BindPhoneNO','other.ApiLoginRequest'}) do
@@ -134,12 +156,12 @@ check('version profile remains stable and avoids metamethods', function()
     local data=setmetatable({Phone_Os=1,Version='1.0.77'}, {
         __index=function() error('read trap') end,__newindex=function() error('write trap') end})
     for i=1,1000 do apply('md.Login',data,5) end
-    assert(rawget(data,'Phone_Os')==2 and rawget(data,'ChannelID')==888 and rawget(data,'Version')=='1.0.79')
+    assert(rawget(data,'Phone_Os')==2 and rawget(data,'ChannelID')==888 and rawget(data,'Version')=='1.0.81')
 end)
 check('current cached login can mix 1.0.79 and installed 1.0.77', function()
-    local data=request(); data.Version='1.0.79'; data.VersionName='1.0.77'; data.ChannelID=888
+    local data=request(); data.Version='1.0.79'; data.VersionName='1.0.77'; data.ChannelID=888; data.PackageName='com.miniworldroyale.sparkgame'
     apply('md.ApiLoginRequest',data,5)
-    assert(data.PhoneOs==2 and data.Version=='1.0.79' and data.VersionName=='1.0.79')
+    assert(data.PhoneOs==2 and data.Version=='1.0.81' and data.VersionName=='1.0.81')
     assert(data.OpenToken=='NOT-A-REAL-TOKEN')
 end)
 return cases

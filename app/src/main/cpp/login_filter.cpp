@@ -27,6 +27,7 @@ int raw_version(const LuaApi& api, lua_State* state, const char* key) {
             if (value == "1.0.77") version = 1;
             else if (value == "1.0.78") version = 2;
             else if (value == "1.0.79") version = 3;
+            else if (value == "1.0.81") version = 4;
         }
     }
     api.settop(state, -2);
@@ -34,6 +35,31 @@ int raw_version(const LuaApi& api, lua_State* state, const char* key) {
 }
 void raw_string(const LuaApi& api, lua_State* state, const char* key, const char* value) {
     api.pushstring(state, key); api.pushstring(state, value); api.rawset(state, 2);
+}
+bool accepted_login_channel(int channel) {
+    // Values come from the official client's eBuildChannel metadata:
+    // Official 23, Oppo 6, T233 33, IOS 888. Other channels stay unchanged.
+    return channel == 23 || channel == 6 || channel == 33 || channel == 888;
+}
+int raw_package(const LuaApi& api, lua_State* state, const char* key) {
+    api.pushstring(state, key); api.rawget(state, 2);
+    int package = 0;
+    const int type = api.type(state, -1);
+    if (type == string_type) {
+        std::size_t size = 0;
+        const char* text = api.tolstring(state, -1, &size);
+        package = -1;
+        if (text && size > 0) {
+            const std::string_view value(text, size);
+            if (value == "com.miniworldroyale.sparkgame") package = 1;
+            else if (value == "com.miniworldroyale.sparkgame.meta") package = 2;
+            else if (value == "com.miniworldroyale.sparkgame.nearme.gamecenter") package = 3;
+        }
+    } else if (type != 0) {
+        package = -1;
+    }
+    api.settop(state, -2);
+    return package;
 }
 }
 FilterResult apply_login_filter(const LuaApi& api, lua_State* state, int mode) {
@@ -59,21 +85,28 @@ FilterResult apply_login_filter(const LuaApi& api, lua_State* state, int mode) {
         result.original_channel = static_cast<int>(channel);
     result.selected_channel = result.original_channel;
     // OS-only mode preserves every channel. Combined mode accepts only the
-    // two game build-channel values verified in the official metadata.
-    if ((mode == 4 || mode == 5) && channel != 23 && channel != 888 && !(result.message==2 && channel_missing)) return result;
+    // official, OPPO, 233 and iOS game build-channel values from official metadata.
+    if ((mode == 4 || mode == 5) && !accepted_login_channel(result.original_channel) &&
+        !(result.message==2 && channel_missing)) return result;
     if (mode == 5) {
         const int version = raw_version(api, state, "Version");
         // The game merges its saved lobby login into a new terminal request.
-        // A cached Version=1.0.78 can coexist with the installed VersionName=1.0.77.
+        // A cached Version can be 1.0.78, 1.0.79, or 1.0.81 while VersionName stays 1.0.77.
         // Both must be known; normalize them together without touching credentials.
         if (!version || (result.message == 1 && !raw_version(api, state, "VersionName"))) return result;
+        const int package = raw_package(api, state, "PackageName");
+        // Channel clients identify themselves with a separate package name.
+        // Missing matches the verified official request. Unknown names stay unchanged.
+        if (package < 0) return result;
+        result.package_profile = package == 2 || package == 3;
     }
     raw_integer(api, state, os_key, 2);
     result.selected_os = 2;
     if (mode == 4 || mode == 5) { raw_integer(api, state, "ChannelID", 888); result.selected_channel = 888; }
     if (mode == 5) {
-        raw_string(api, state, "Version", "1.0.79");
-        if (result.message == 1) raw_string(api, state, "VersionName", "1.0.79");
+        raw_string(api, state, "Version", "1.0.81");
+        if (result.message == 1) raw_string(api, state, "VersionName", "1.0.81");
+        if (result.package_profile) raw_string(api, state, "PackageName", "com.miniworldroyale.sparkgame");
         result.version_profile = true;
     }
     result.applied = true;

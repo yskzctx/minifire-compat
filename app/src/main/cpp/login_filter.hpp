@@ -21,5 +21,6 @@ struct FilterResult {
     int original_channel = -1, selected_channel = -1;
     bool applied = false;
     bool version_profile = false;
+    bool package_profile = false;
 };
 FilterResult apply_login_filter(const LuaApi&, lua_State*, int mode);

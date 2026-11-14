@@ -69,8 +69,8 @@ def main():
                 raise AssertionError(lua.lua_tolstring(state, -1, None))
             report = {'reference': 'v0.4.1', 'legacy_native_artifacts_sha256': artifact_hashes,
                       'behavior_cases_passed': lua.lua_tointeger(state, -1),
-                      'intentional_differences': ['login version 1.0.78 -> 1.0.79',
-                                                  'accept known 1.0.79 cached versions'],
+                      'intentional_differences': ['login version 1.0.78 -> 1.0.81',
+                                                  'accept known 1.0.79 and 1.0.81 cached versions'],
                       'device_settings_persistence_verified': False}
             (BUILD / 'result.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
             print(json.dumps(report, indent=2))

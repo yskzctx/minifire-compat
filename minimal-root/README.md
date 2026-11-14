@@ -1,6 +1,6 @@
 # 迷枪苹果区兼容：固定 ELF 跳板候选
 
-源码当前为 **2.1.0 固定跳板候选**。默认仍推荐保留用户已成功的 [2.0.1 原包](https://github.com/yskzctx/minifire-compat/releases/tag/v2.0.1-minimal-pre.1)；本版还没有手机验收。原 LSP 0.4.1 也继续保留。
+源码当前为 **2.1.2 苹果区 1.0.81 候选**，跳板机制仍沿用 2.1.0。默认仍推荐保留用户已成功的 [2.0.1 原包](https://github.com/yskzctx/minifire-compat/releases/tag/v2.0.1-minimal-pre.1)；本版还没有手机验收。原 LSP 0.4.1 也继续保留。
 
 本版通过 Zygisk Next 加载一个模块，不依赖 LSPosed 游戏作用域。唯一业务 Hook 仍位于已核对游戏私有 libtolua 的 pb.encode。直接复用 `app/src/main/cpp/login_filter.cpp`，只改 `md.ApiLoginRequest` 和 `md.Login` 的已知平台、渠道、版本字段。账号凭据、启动资源版本、签名和游戏发送流程保持原样。
 
@@ -13,7 +13,9 @@
 3. 诊断应显示 `backend=fixed_elf_trampoline`，并依次看到 Root 握手、库指纹通过、`hook_installed`、`file_backed_trampoline_selected` 和登录改写事件。日志证明改写不等于服务器接受，最终核对角色。
 4. 可复制或导出完整诊断到 Download。若候选不可用，可以覆盖装回保留的 2.0.1 并重启，不需要删除账号数据。
 
-只支持已核对官方 ARM64 1.0.77 所用 Lua 库，SHA256 `7f61316eb49e95e416b2a96b744b3eb0cc94d9347bf3c3f5c5cf983bb18a05a6`。登录目标声明保持 1.0.79。选包不等于所有渠道适配；未知库、指令或权限状态会拒绝安装 Hook。
+2.1.1 在同一登录过滤器中接受官方渠道 23、233 渠道 33 和 OPPO 渠道 6。已知渠道包名会在登录请求里改成官方包名；未知渠道、未知包名或库指纹不匹配时整条登录保持原样。233 与 OPPO 的独立安装包尚未取得，因此不能把选中包名当成这两个渠道已经完成二进制适配。
+
+只支持已核对官方 ARM64 1.0.77 所用 Lua 库，SHA256 `7f61316eb49e95e416b2a96b744b3eb0cc94d9347bf3c3f5c5cf983bb18a05a6`。登录目标声明为苹果区 1.0.81。已核对的官方库入口偏移不变；1.0.77、1.0.78 和 1.0.79 的登录缓存仍会改成 1.0.81。选包不等于所有渠道适配；未知库、指令或权限状态会拒绝安装 Hook。
 
 ## 日志与剩余痕迹
 

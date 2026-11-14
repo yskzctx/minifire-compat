@@ -37,10 +37,11 @@ std::atomic<bool> patch_active{false};
 void event(const char* stage,const FilterResult* result=nullptr,int error=0,int permissions=-1,long long duration_us=-1) {
     char line[640]; timespec stamp{}; clock_gettime(CLOCK_REALTIME,&stamp);
     const int n=std::snprintf(line,sizeof(line),
-        "{\"time_unix\":%lld,\"pid\":%d,\"stage\":\"%s\",\"error\":%d,\"message\":%d,\"applied\":%d,\"os_before\":%d,\"os_after\":%d,\"channel_before\":%d,\"channel_after\":%d,\"apple_version\":%d,\"permissions\":%d,\"duration_us\":%lld}\n",
+        "{\"time_unix\":%lld,\"pid\":%d,\"stage\":\"%s\",\"error\":%d,\"message\":%d,\"applied\":%d,\"os_before\":%d,\"os_after\":%d,\"channel_before\":%d,\"channel_after\":%d,\"apple_version\":%d,\"package_profile\":%d,\"permissions\":%d,\"duration_us\":%lld}\n",
         static_cast<long long>(stamp.tv_sec),getpid(),stage,error,result?result->message:0,
         result&&result->applied?1:0,result?result->original_os:-1,result?result->selected_os:-1,
-        result?result->original_channel:-1,result?result->selected_channel:-1,result&&result->version_profile?1:0,permissions,duration_us);
+        result?result->original_channel:-1,result?result->selected_channel:-1,result&&result->version_profile?1:0,
+        result&&result->package_profile?1:0,permissions,duration_us);
     if(n<=0 || static_cast<std::size_t>(n)>=sizeof(line)) return;
     __android_log_print(ANDROID_LOG_INFO,"MinifireCompatM","%s",line);
 }
